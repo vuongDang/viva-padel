@@ -1,14 +1,14 @@
 use crate::availaibility_calendar::AvailaibilityCalendar;
-use leptos::leptos_dom::ev::SubmitEvent;
+// use leptos::leptos_dom::ev::SubmitEvent;
 use leptos::*;
 use serde::{Deserialize, Serialize};
-use serde_wasm_bindgen::to_value;
+// use serde_wasm_bindgen::to_value;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
-    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
+    pub(crate) async fn invoke(cmd: &str, args: JsValue) -> JsValue;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -34,8 +34,8 @@ pub fn App() -> impl IntoView {
     //             return;
     //         }
     //
-    //         let args = to_value(&GreetArgs { name: &name }).unwrap();
     //         // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
+    //         let args = to_value(&GreetArgs { name: &name }).unwrap();
     //         let new_msg = invoke("greet", args).await.as_string().unwrap();
     //         set_greet_msg.set(new_msg);
     //     });

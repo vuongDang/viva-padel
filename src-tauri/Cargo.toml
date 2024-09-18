@@ -12,12 +12,12 @@ name = "viva_padel_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.0.0-beta", features = [] }
+tauri-build = { version = "2.0.0-rc", features = [] }
 
 [dependencies]
-tauri = { version = "2.0.0-beta", features = [] }
-tauri-plugin-shell = "2.0.0-beta"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-reqwest = { version = "0.11", features = ["json"] }
-tokio = { version = "1", features = ["full"] }
+tauri = { version = "2.0.0-rc", features = [] }
+tauri-plugin-shell = "2.0.0-rc"
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+shared-structs = { workspace = true }
