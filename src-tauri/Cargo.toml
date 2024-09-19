@@ -20,4 +20,4 @@ tauri-plugin-shell = "2.0.0-rc"
 serde = { workspace = true }
 serde_json = { workspace = true }
 reqwest = { workspace = true }
-shared-structs = { workspace = true }
+shared = { workspace = true }

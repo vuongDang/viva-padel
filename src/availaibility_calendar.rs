@@ -1,13 +1,13 @@
 use crate::invoke;
+use chrono::{DateTime, Datelike, Days, Local, Weekday};
 use leptos::*;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::{from_value, to_value};
-use shared_structs::server_structs::PlanningResponse;
+use shared::server_structs::DayPlanningResponse;
 
 const DAYS_PER_WEEK: u8 = 7;
 const NB_WEEKS_SHOWN: u8 = 4;
 const NB_DAYS_SHOWN: u8 = DAYS_PER_WEEK * NB_WEEKS_SHOWN;
-use chrono::{DateTime, Datelike, Days, Local, Weekday};
 
 #[derive(Serialize, Deserialize)]
 struct PlanningArgs<'a> {
@@ -52,76 +52,95 @@ pub fn AvailaibilityCalendar() -> impl IntoView {
     view! {
         {move || msg}
         <div id="availability-calendar-prev-next-wrapper">
-        <div id="availability-calendar-prev"
-            // Show previous days
-            on:click={ move |_| {
-                set_days_shown.update(|days_shown| {
-                    let first_day_shown = days_shown[0][0];
-                    let next_first_day_shown = first_day_shown.checked_sub_days(Days::new(NB_DAYS_SHOWN as u64)).unwrap();
-                    *days_shown = get_next_days_from(next_first_day_shown);
-                })
-            }} >
-           Prev
-        </div>
-        <div id="availability-calendar-next"
-            // Show next days
-            on:click={ move |_| {
-                set_days_shown.update(|days_shown| {
-                    let first_day_shown = days_shown[0][0];
-                    let next_first_day_shown = first_day_shown.checked_add_days(Days::new(NB_DAYS_SHOWN as u64)).unwrap();
-                    *days_shown = get_next_days_from(next_first_day_shown);
-                })
-            }}>
-            Next
-        </div>
+            <div
+                id="availability-calendar-prev"
+                // Show previous days
+                on:click=move |_| {
+                    set_days_shown
+                        .update(|days_shown| {
+                            let first_day_shown = days_shown[0][0];
+                            let next_first_day_shown = first_day_shown
+                                .checked_sub_days(Days::new(NB_DAYS_SHOWN as u64))
+                                .unwrap();
+                            *days_shown = get_next_days_from(next_first_day_shown);
+                        })
+                }
+            >
+                Prev
+            </div>
+            <div
+                id="availability-calendar-next"
+                // Show next days
+                on:click=move |_| {
+                    set_days_shown
+                        .update(|days_shown| {
+                            let first_day_shown = days_shown[0][0];
+                            let next_first_day_shown = first_day_shown
+                                .checked_add_days(Days::new(NB_DAYS_SHOWN as u64))
+                                .unwrap();
+                            *days_shown = get_next_days_from(next_first_day_shown);
+                        })
+                }
+            >
+                Next
+            </div>
         </div>
         <div id="availability-calendar">
             <div id="availability-calendar-headers">
-                {
-                    (0..DAYS_PER_WEEK).map(|weekday| {
+                {(0..DAYS_PER_WEEK)
+                    .map(|weekday| {
                         view! {
                             <div class="availability-calendar-headers-cell">
                                 {Weekday::try_from(weekday).unwrap().to_string()}
                             </div>
                         }
-                    }).collect_view()
+                    })
+                    .collect_view()}
 
-                }
             </div>
             <div id="availability-calendar-body">
                 {move || {
-                        days_shown.get().into_iter().map(|week| {
+                    days_shown
+                        .get()
+                        .into_iter()
+                        .map(|week| {
                             view! {
                                 <div class="calendar-week-row">
-                                    {
-                                        week.into_iter().map(|day| {
+                                    {week
+                                        .into_iter()
+                                        .map(|day| {
                                             view! {
                                                 // <a href="#" class="calendar-day-cell">
                                                 <div
                                                     class="calendar-day-cell"
                                                     class=("calendar-day-cell-past", move || now_datetime > day)
-                                                    class=("calendar-day-cell-today", move || now_datetime.day() == day.day())
-                                                    on:click={ move |_| {
+                                                    class=(
+                                                        "calendar-day-cell-today",
+                                                        move || now_datetime.day() == day.day(),
+                                                    )
+                                                    on:click=move |_| {
                                                         spawn_local(async move {
                                                             let selected_day = day.date_naive().to_string();
-                                                            let args = to_value(&PlanningArgs { day: &selected_day }).unwrap();
-                                                            let planning: PlanningResponse = from_value(invoke("get_planning", args).await).expect("Failed to get parse calendar response");
+                                                            let args = to_value(&PlanningArgs { day: &selected_day })
+                                                                .unwrap();
+                                                            let planning: DayPlanningResponse = from_value(
+                                                                    invoke("get_planning", args).await,
+                                                                )
+                                                                .expect("Failed to get parse calendar response");
                                                             set_msg.update(|msg| *msg = format!("{:#?}", planning));
-                                                        }
-                                                        )}
+                                                        })
                                                     }
-                                                    >
+                                                >
                                                     {format!("{}", day.format("%d - %b"))}
                                                 </div>
-                                                // </a>
                                             }
-                                        }).collect_view()
-                                    }
+                                        })
+                                        .collect_view()}
                                 </div>
                             }
-                        }).collect_view()
-                    }
-                }
+                        })
+                        .collect_view()
+                }}
             </div>
         </div>
     }

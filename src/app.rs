@@ -1,4 +1,5 @@
 use crate::availaibility_calendar::AvailaibilityCalendar;
+use crate::day_availability::DayAvailaibilityList;
 // use leptos::leptos_dom::ev::SubmitEvent;
 use leptos::*;
 use serde::{Deserialize, Serialize};
@@ -14,6 +15,15 @@ extern "C" {
 #[derive(Serialize, Deserialize)]
 struct GreetArgs<'a> {
     name: &'a str,
+}
+
+pub(crate) fn get_planning() -> shared::app_structs::DayPlanning {
+    let manifest_path = std::env!("CARGO_MANIFEST_DIR");
+    let path = "tests/json_responses/get_planning.json";
+    let path = format!("{manifest_path}/{path}");
+    let response = std::fs::read_to_string(path).expect("Failed to read json file");
+    let parsed = serde_json::from_str::<shared::server_structs::DayPlanningResponse>(&response);
+    parsed.unwrap().into()
 }
 
 #[component]
@@ -43,7 +53,8 @@ pub fn App() -> impl IntoView {
 
     view! {
         <main class="container">
-            <AvailaibilityCalendar/>
+            // <AvailaibilityCalendar />
+            <DayAvailaibilityList day=chrono::Local::now() planning=get_planning() />
         </main>
     }
 }

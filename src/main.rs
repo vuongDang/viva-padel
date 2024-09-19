@@ -1,5 +1,6 @@
 mod app;
 mod availaibility_calendar;
+mod day_availability;
 
 use app::*;
 use leptos::*;

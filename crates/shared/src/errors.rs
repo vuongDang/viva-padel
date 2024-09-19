@@ -4,6 +4,10 @@ pub enum Error {
     NetworkError(String),
     #[error("Json parsing error: {0}")]
     JsonParsingError(String),
+    #[error("Parsing error: {0}")]
+    ParsingError(String),
+    #[error("The Json response is not as expected: {0}")]
+    JsonResponseContentNotAsExpected(String),
 }
 
 impl From<reqwest::Error> for Error {
