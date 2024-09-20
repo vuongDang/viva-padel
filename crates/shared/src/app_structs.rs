@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 pub type StartTime = String;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct DayPlanning {
     pub day: String,
     pub slots: HashMap<StartTime, Slot>,

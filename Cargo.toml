@@ -15,6 +15,7 @@ chrono = { workspace = true }
 shared = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tauri-plugin-fs = "2.0.0-rc.5"
 
 [workspace]
 members = [ "crates/shared", "src-tauri"]

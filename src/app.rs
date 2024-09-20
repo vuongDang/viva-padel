@@ -1,5 +1,9 @@
-use crate::availaibility_calendar::AvailaibilityCalendar;
+use std::thread::spawn;
+
+use crate::{availaibility_calendar::AvailaibilityCalendar, day_availability};
 use crate::day_availability::DayAvailaibilityList;
+use shared::app_structs::{BookingDuration, DayPlanning};
+use serde_wasm_bindgen::{from_value, to_value};
 // use leptos::leptos_dom::ev::SubmitEvent;
 use leptos::*;
 use serde::{Deserialize, Serialize};
@@ -17,21 +21,18 @@ struct GreetArgs<'a> {
     name: &'a str,
 }
 
-pub(crate) fn get_planning() -> shared::app_structs::DayPlanning {
-    let manifest_path = std::env!("CARGO_MANIFEST_DIR");
-    let path = "tests/json_responses/get_planning.json";
-    let path = format!("{manifest_path}/{path}");
-    let response = std::fs::read_to_string(path).expect("Failed to read json file");
-    let parsed = serde_json::from_str::<shared::server_structs::DayPlanningResponse>(&response);
-    parsed.unwrap().into()
+#[derive(Serialize, Deserialize)]
+struct Empty {
+
 }
 
+
 #[component]
+// let update_name = move |ev| {
 pub fn App() -> impl IntoView {
     // let (name, set_name) = create_signal(String::new());
     // let (greet_msg, set_greet_msg) = create_signal(String::new());
     //
-    // let update_name = move |ev| {
     //     let v = event_target_value(&ev);
     //     set_name.set(v);
     // };
@@ -50,11 +51,35 @@ pub fn App() -> impl IntoView {
     //         set_greet_msg.set(new_msg);
     //     });
     // };
+    
+    // let (planning, set_planning) = create_signal(DayPlanning::default());
+    // let args = to_value(&Empty{}).unwrap();
+    // let task = spawn_local( async move {
+    //     let p: DayPlanning = from_value(
+    //     invoke("get_local_planning", args).await).unwrap();
+    //     set_planning.update(|planning| *planning = p );
+    // });
+    
+                                                        //     spawn_local(async move {
+                                                        //     let selected_day = day.date_naive().to_string();
+                                                        //     let args = to_value(&PlanningArgs { day: &selected_day })
+                                                        //         .unwrap();
+                                                        //     let planning: DayPlanningResponse = from_value(
+                                                        //             invoke("get_planning", args).await,
+                                                        //         )
+                                                        //         .expect("Failed to get parse calendar response");
+                                                        //     set_msg.update(|msg| *msg = format!("{:#?}", planning));
+                                                        // })
+
+    // let planning: DayPlanning = spawn_local(async move {
+    //     from_value(
+    //     invoke("get_local_planning", args))
+    // }).await.expect("Failed to get parse calendar response");
 
     view! {
         <main class="container">
-            // <AvailaibilityCalendar />
-            <DayAvailaibilityList day=chrono::Local::now() planning=get_planning() />
+            <AvailaibilityCalendar />
+            // <DayAvailaibilityList day=chrono::Local::now() planning=get_planning() />
         </main>
     }
 }

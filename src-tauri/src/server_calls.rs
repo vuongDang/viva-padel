@@ -20,3 +20,13 @@ pub(crate) async fn get_planning(day: String) -> Result<DayPlanning, Error> {
     let parsed = serde_json::from_str::<server_structs::DayPlanningResponse>(&req_result)?;
     Ok(parsed.into())
 }
+
+#[tauri::command]
+pub async fn get_local_planning() -> Result<DayPlanning, Error> {
+        let manifest_path = std::env!("CARGO_MANIFEST_DIR");
+        let path = "tests/json_responses/get_planning.json";
+        let path = format!("{manifest_path}/{path}");
+        let response = std::fs::read_to_string(path).expect("Failed to read json file");
+        let parsed: DayPlanning = serde_json::from_str::<shared::server_structs::DayPlanningResponse>(&response).unwrap().into();
+        Ok(parsed)
+}
