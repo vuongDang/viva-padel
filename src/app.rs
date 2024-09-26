@@ -1,31 +1,24 @@
-use std::thread::spawn;
-
-use crate::{availaibility_calendar::AvailaibilityCalendar, day_availability};
-use crate::day_availability::DayAvailaibilityList;
-use shared::app_structs::{BookingDuration, DayPlanning};
-use serde_wasm_bindgen::{from_value, to_value};
+use crate::availaibility_calendar::AvailaibilityCalendar;
+// use shared::app_structs::{BookingDuration, DayPlanning};
+// use serde_wasm_bindgen::{from_value, to_value};
 // use leptos::leptos_dom::ev::SubmitEvent;
 use leptos::*;
-use serde::{Deserialize, Serialize};
+use leptos_router::*;
+// use serde::{Deserialize, Serialize};
 // use serde_wasm_bindgen::to_value;
-use wasm_bindgen::prelude::*;
+// use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
-    pub(crate) async fn invoke(cmd: &str, args: JsValue) -> JsValue;
-}
-
-#[derive(Serialize, Deserialize)]
-struct GreetArgs<'a> {
-    name: &'a str,
-}
-
-#[derive(Serialize, Deserialize)]
-struct Empty {
-
-}
-
+// #[wasm_bindgen]
+// extern "C" {
+//     #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
+//     pub(crate) async fn invoke(cmd: &str, args: JsValue) -> JsValue;
+// }
+//
+// #[derive(Serialize, Deserialize)]
+// struct GreetArgs<'a> {
+//     name: &'a str,
+// }
+//
 
 #[component]
 // let update_name = move |ev| {
@@ -51,7 +44,7 @@ pub fn App() -> impl IntoView {
     //         set_greet_msg.set(new_msg);
     //     });
     // };
-    
+
     // let (planning, set_planning) = create_signal(DayPlanning::default());
     // let args = to_value(&Empty{}).unwrap();
     // let task = spawn_local( async move {
@@ -59,27 +52,29 @@ pub fn App() -> impl IntoView {
     //     invoke("get_local_planning", args).await).unwrap();
     //     set_planning.update(|planning| *planning = p );
     // });
-    
-                                                        //     spawn_local(async move {
-                                                        //     let selected_day = day.date_naive().to_string();
-                                                        //     let args = to_value(&PlanningArgs { day: &selected_day })
-                                                        //         .unwrap();
-                                                        //     let planning: DayPlanningResponse = from_value(
-                                                        //             invoke("get_planning", args).await,
-                                                        //         )
-                                                        //         .expect("Failed to get parse calendar response");
-                                                        //     set_msg.update(|msg| *msg = format!("{:#?}", planning));
-                                                        // })
 
-    // let planning: DayPlanning = spawn_local(async move {
-    //     from_value(
-    //     invoke("get_local_planning", args))
-    // }).await.expect("Failed to get parse calendar response");
+    //     spawn_local(async move {
+    //     let selected_day = day.date_naive().to_string();
+    //     let args = to_value(&PlanningArgs { day: &selected_day })
+    //         .unwrap();
+    //     let planning: DayPlanningResponse = from_value(
+    //             invoke("get_planning", args).await,
+    //         )
+    //         .expect("Failed to get parse calendar response");
+    //     set_msg.update(|msg| *msg = format!("{:#?}", planning));
+    // })
 
+    // let planning: DayPlanning = DayPlanning::testcase();
     view! {
-        <main class="container">
-            <AvailaibilityCalendar />
-            // <DayAvailaibilityList day=chrono::Local::now() planning=get_planning() />
-        </main>
+        <Router>
+            <main class="container">
+                <Routes>
+                    <Route path="/" view=AvailaibilityCalendar />
+                    // <Route path="day_planning/:day" view=DayAvailaibilityList />
+                    <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> } />
+                </Routes>
+            </main>
+        // <DayAvailaibilityList day=chrono::Local::now() planning=planning />
+        </Router>
     }
 }

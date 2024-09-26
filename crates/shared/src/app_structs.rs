@@ -1,31 +1,33 @@
 //! Easy to use structures for our application
 use crate::server_structs::DayPlanningResponse;
+// use crate::tauri_invokes::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 pub type StartTime = String;
+pub type DayKey = String;
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct DayPlanning {
     pub day: String,
-    pub slots: HashMap<StartTime, Slot>,
+    pub slots: BTreeMap<StartTime, Slot>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Slot {
     pub available_courts: Vec<PadelCourt>,
     pub duration: BookingDuration,
 }
 
 // Currently we only take care of 1h30 booking duration
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum BookingDuration {
     NinetyMin(),
     TwoHours(),
     OneHour(),
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct PadelCourt {
     pub name: String,
     pub is_indoor: bool,
@@ -43,9 +45,53 @@ impl From<&BookingDuration> for usize {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct Calendar {
+    pub days: BTreeMap<DayKey, DayPlanning>,
+}
+
+impl Calendar {
+    pub fn new() -> Self {
+        Calendar {
+            days: BTreeMap::new(),
+        }
+    }
+
+    /// We only retrieve missing days
+    pub async fn retrieve(&self, days: Vec<String>) -> Self {
+        let mut calendar = Calendar::new();
+        for day in days.into_iter() {
+            if !self.days.contains_key(&day){
+                let day_planning = DayPlanning::retrieve(day.clone()).await;
+                calendar.days.insert(day, day_planning);
+            }
+        }
+        calendar
+    }
+
+    pub fn merge(&mut self, calendar: Calendar) {
+        for (day, day_planning) in calendar.days.into_iter() {
+            self.days.insert(day, day_planning);
+        }
+    }
+
+}
+
+impl DayPlanning {
+    pub fn has_slots(&self) -> bool {
+        self.slots.iter().any(|(_, slot)| !slot.available_courts.is_empty())
+    }
+
+    pub fn testcase() -> DayPlanning {
+        let response = crate::testcases::day_planning_testcase::DAY_PLANNING_CASE;
+        let parsed = serde_json::from_str::<DayPlanningResponse>(response);
+        parsed.unwrap().into()
+    }
+}
+
 impl From<DayPlanningResponse> for DayPlanning {
     fn from(server_res: DayPlanningResponse) -> DayPlanning {
-        let mut slots: HashMap<String, Slot> = HashMap::new();
+        let mut slots: BTreeMap<String, Slot> = BTreeMap::new();
         let courts = server_res.courts();
 
         for response_court in courts.iter() {

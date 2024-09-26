@@ -21,3 +21,12 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 reqwest = { workspace = true }
 shared = { workspace = true }
+async-std = { version = "1", optional = true }
+
+[local]
+
+[features]
+default = ["local_dev"]
+# default = []
+prod = []
+local_dev = ["async-std"]

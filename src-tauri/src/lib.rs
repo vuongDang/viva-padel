@@ -1,5 +1,12 @@
+#[cfg(not(feature = "local_dev"))]
 mod server_calls;
+#[cfg(not(feature = "local_dev"))]
 use server_calls::*;
+
+#[cfg(feature = "local_dev")]
+mod local_dev_server_calls;
+#[cfg(feature = "local_dev")]
+use local_dev_server_calls::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -7,9 +14,7 @@ pub fn run() {
     // let future = test_reqwest();
     // rt.block_on(future);
     tauri::Builder::default()
-        // .plugin(tauri_plugin_fs::init())
-        // .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![get_planning, get_local_planning])
+        .invoke_handler(tauri::generate_handler![get_day_planning])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
