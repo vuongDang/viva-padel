@@ -26,7 +26,7 @@ members = [ "crates/shared", "src-tauri"]
 leptos = { version = "0.6", features = ["csr"] }
 chrono = "0.4"
 shared = { path = "./crates/shared/" }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 serde-wasm-bindgen = "0.6"
