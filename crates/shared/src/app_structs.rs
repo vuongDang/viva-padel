@@ -4,22 +4,34 @@ use crate::server_structs::DayPlanningResponse;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+/// Time at which starts a booking slot
 pub type StartTime = String;
+/// Keys for a calendar which are days of the year 
 pub type DayKey = String;
 
+/// A filter used to specify which padel courts we want to book
+pub struct Filter {
+    days_of_the_week: Vec<chrono::Weekday>,
+    start_time_slots: Vec<(String, String)>,
+    with_outdoor: bool
+}
+
+/// The planning of courts availaibility for a day
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct DayPlanning {
     pub day: String,
     pub slots: BTreeMap<StartTime, Slot>,
 }
 
+/// The available courts for a slot
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Slot {
     pub available_courts: Vec<PadelCourt>,
     pub duration: BookingDuration,
 }
 
-// Currently we only take care of 1h30 booking duration
+/// The duration of a booking
+/// Note: Currently we only take care of 1h30 booking duration
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum BookingDuration {
     NinetyMin(),
@@ -27,6 +39,7 @@ pub enum BookingDuration {
     OneHour(),
 }
 
+/// Information of a padel court
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct PadelCourt {
     pub name: String,

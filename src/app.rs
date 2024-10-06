@@ -1,4 +1,4 @@
-use crate::availaibility_calendar::AvailaibilityCalendar;
+use crate::book_court::BookCourtView;
 // use shared::app_structs::{BookingDuration, DayPlanning};
 // use serde_wasm_bindgen::{from_value, to_value};
 // use leptos::leptos_dom::ev::SubmitEvent;
@@ -69,7 +69,7 @@ pub fn App() -> impl IntoView {
         <Router>
             <main class="container">
                 <Routes>
-                    <Route path="/" view=AvailaibilityCalendar />
+                    <Route path="/" view=BookCourtView />
                     // <Route path="day_planning/:day" view=DayAvailaibilityList />
                     <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> } />
                 </Routes>

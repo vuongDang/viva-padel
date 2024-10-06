@@ -1,6 +1,5 @@
 mod app;
-mod availaibility_calendar;
-mod day_availability;
+mod book_court;
 
 use app::*;
 use leptos::*;

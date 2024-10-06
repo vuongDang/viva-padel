@@ -1,4 +1,4 @@
-use crate::day_availability::DayAvailaibilityList;
+use crate::book_court::day_availability::DayAvailaibilityList;
 use chrono::{DateTime, Datelike, Days, Local, Weekday};
 use leptos::*;
 use shared::app_structs::DayPlanning;
@@ -48,8 +48,9 @@ pub fn AvailaibilityCalendar() -> impl IntoView {
 
     view! {
         <div id="availability-calendar-prev-next-wrapper">
-            <div
-                id="availability-calendar-prev"
+
+        <div id="availability-calendar-prev">
+            <Button
                 // Show previous days
                 on:click=move |_| {
                     set_days_shown
@@ -63,11 +64,14 @@ pub fn AvailaibilityCalendar() -> impl IntoView {
                     update_calendar();
                     leptos::logging::log!("Prev!");
                 }
-            >
+        color=ButtonColor::Warning >
                 Prev
+            </Button>
             </div>
             <div
                 id="availability-calendar-next"
+            >
+            <Button
                 // Show next days
                 on:click=move |_| {
                     set_days_shown
@@ -81,8 +85,9 @@ pub fn AvailaibilityCalendar() -> impl IntoView {
                     update_calendar();
                     leptos::logging::log!("Next!");
                 }
-            >
+                color=ButtonColor::Warning >
                 Next
+            </Button>
             </div>
         </div>
         <Table>
@@ -129,10 +134,8 @@ pub fn AvailaibilityCalendar() -> impl IntoView {
                                                                 );
                                                                 let calendar = calendar.get();
                                                                 let day_planning = calendar.get(&day_string);
-                                                                if day_planning.is_none() {
-                                                                    return true;
-                                                                }
-                                                                day_planning.unwrap().get().is_none()
+                                                                day_planning.is_none() || day_planning.unwrap().get().is_none() || day_planning.unwrap().get().unwrap().day < chrono::Local::now().format(DAY_FORMAT).to_string()
+                                                                
                                                             })
                                                             color=ButtonColor::Primary
                                                             on_click=move |_| {
