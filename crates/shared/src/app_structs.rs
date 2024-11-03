@@ -10,7 +10,7 @@ pub type StartTime = String;
 pub type DayKey = String;
 
 /// A filter used to specify which padel courts we want to book
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Filter {
     pub name: String,
     pub days_of_the_week: Vec<chrono::Weekday>,
