@@ -112,7 +112,7 @@ impl DayPlanningResponse {
 
     // Get date from url request that looks like this:
     // "/clubs/playgrounds/plannings/2024-10-04?club.id=a126b4d4..."
-    pub(crate) fn day(&self) -> &str {
+    pub(crate) fn date(&self) -> &str {
         const BASE_REQ: &str = "/clubs/playgrounds/plannings/";
         const DATE_LEN: usize = 10;
         let url = &self.view.id;

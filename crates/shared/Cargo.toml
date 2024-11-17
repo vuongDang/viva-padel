@@ -13,5 +13,11 @@ chrono = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 wasm-bindgen = {workspace = true }
 wasm-bindgen-futures = { workspace = true }
+testcases = { workspace = true, optional = true }
+
+[features]
+default = ["local_dev"]
+# default = []
+local_dev = ["testcases"]
 
 

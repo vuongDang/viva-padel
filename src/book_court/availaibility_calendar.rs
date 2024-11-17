@@ -1,93 +1,97 @@
 use crate::book_court::day_availability::DayAvailaibilityList;
-use chrono::{DateTime, Datelike, Days, Local, Weekday};
+use chrono::{DateTime, Days, Local, Weekday};
 use leptos::*;
-use shared::app_structs::DayPlanning;
-use shared::DAY_FORMAT;
-use thaw::*;
+use shared::frontend::{calendar_ui::{DayPlanning, Filter, Calendar, DateKey}, utils::{get_next_days_from, flatten_days}};
 use std::collections::BTreeMap;
-
-const DAYS_PER_WEEK: u8 = 7;
-const NB_WEEKS_SHOWN: u8 = 4;
-const NB_DAYS_SHOWN: u8 = DAYS_PER_WEEK * NB_WEEKS_SHOWN;
+use shared::{DATE_FORMAT, NB_DAYS_SHOWN, DAYS_PER_WEEK};
+use thaw::*;
 
 #[component]
-pub fn AvailaibilityCalendar() -> impl IntoView {
-    // let (days_loaded, set_days_loaded) = create_signal(vec![]);
+pub fn AvailaibilityCalendar(filter: RwSignal<Filter>) -> impl IntoView {
     // Days shown by the UI
     let (days_shown, set_days_shown) = create_signal::<Vec<Vec<DateTime<Local>>>>(vec![]);
     let show = create_rw_signal(false);
-    // Day selected by the user
-    let (selected_day, set_selected_day) = create_signal(chrono::Local::now().to_string());
 
-    // Court availabilities for all the days shown
-    let calendar = create_rw_signal(BTreeMap::new());
+    // Court availabilities for all the days loaded 
+    let calendar: RwSignal<Calendar> = create_rw_signal(Calendar::new());
 
     // Planning for selected day
-    let (planning, set_planning) = create_signal(DayPlanning::default());
+    let (planning, set_planning) = create_signal((None, DayPlanning::default()));
 
     // Init by retrieving calendar from server
     let now_datetime = chrono::Local::now();
     set_days_shown.update(|days_shown| *days_shown = get_next_days_from(now_datetime));
 
     // Closure to update the calendar
-    let update_calendar = move  || {spawn_local(async move {
-        logging::log!("Updating the calendar");
+    let update_calendar = move  || {
         let flatten_days = flatten_days(days_shown.get_untracked());
         calendar.update(|cal| {
             for day_shown  in flatten_days.into_iter() {
-                cal.entry(day_shown.clone()).or_insert(create_resource(|| (),
+                cal.days.entry(day_shown.clone()).or_insert(create_resource(
+                    || (),
                     move |_| {
                         let day_shown_clone = day_shown.clone();
                         async move { 
-                            DayPlanning::retrieve(day_shown_clone).await 
-                        }}));
-            }});
-    })};
+                            let d = DayPlanning::retrieve(&day_shown_clone).await ;
+                            d
+                        }
+                    }
+                ));
+            }
+        });
+        logging::log!("Updated calendar: {:?}",calendar.get_untracked().days.keys());
+    };
     update_calendar();
+
+    // The calendar that is displayed after applying the filter
+    let filtered_calendar: Signal<BTreeMap<DateKey, DayPlanning>>   = Signal::derive(move || {
+        // leptos::logging::log!("Filtering!");
+        calendar.get().filtered(&filter.get())
+    });
 
 
     view! {
+        <span hidden>{move || format!("{:?}", filtered_calendar.get())}</span>
         <div id="availability-calendar-prev-next-wrapper">
-
-        <div id="availability-calendar-prev">
-            <Button
-                // Show previous days
-                on:click=move |_| {
-                    set_days_shown
-                        .update(|days_shown| {
-                            let first_day_shown = days_shown[0][0];
-                            let next_first_day_shown = first_day_shown
-                                .checked_sub_days(Days::new(NB_DAYS_SHOWN as u64))
-                                .unwrap();
-                            *days_shown = get_next_days_from(next_first_day_shown);
-                        });
-                    update_calendar();
-                    leptos::logging::log!("Prev!");
-                }
-        color=ButtonColor::Warning >
-                Prev
-            </Button>
+            <div id="availability-calendar-prev">
+                <Button
+                    // Show previous days
+                    on:click=move |_| {
+                        set_days_shown
+                            .update(|days_shown| {
+                                let first_day_shown = days_shown[0][0];
+                                let next_first_day_shown = first_day_shown
+                                    .checked_sub_days(Days::new(NB_DAYS_SHOWN as u64))
+                                    .unwrap();
+                                *days_shown = get_next_days_from(next_first_day_shown);
+                            });
+                        update_calendar();
+                        leptos::logging::log!("Prev!");
+                    }
+                    color=ButtonColor::Warning
+                >
+                    Prev
+                </Button>
             </div>
-            <div
-                id="availability-calendar-next"
-            >
-            <Button
-                // Show next days
-                on:click=move |_| {
-                    set_days_shown
-                        .update(|days_shown| {
-                            let first_day_shown = days_shown[0][0];
-                            let next_first_day_shown = first_day_shown
-                                .checked_add_days(Days::new(NB_DAYS_SHOWN as u64))
-                                .unwrap();
-                            *days_shown = get_next_days_from(next_first_day_shown);
-                        });
-                    update_calendar();
-                    leptos::logging::log!("Next!");
-                }
-                color=ButtonColor::Warning >
-                Next
-            </Button>
+            <div id="availability-calendar-next">
+                <Button
+                    // Show next days
+                    on:click=move |_| {
+                        set_days_shown
+                            .update(|days_shown| {
+                                let first_day_shown = days_shown[0][0];
+                                let next_first_day_shown = first_day_shown
+                                    .checked_add_days(Days::new(NB_DAYS_SHOWN as u64))
+                                    .unwrap();
+                                *days_shown = get_next_days_from(next_first_day_shown);
+                            });
+                        update_calendar();
+                        leptos::logging::log!("Next!");
+                    }
+                    color=ButtonColor::Warning
+                >
+                    Next
+                </Button>
             </div>
         </div>
         <Table>
@@ -127,29 +131,42 @@ pub fn AvailaibilityCalendar() -> impl IntoView {
                                                         view! { <Spinner size=SpinnerSize::Medium /> }
                                                     }>
                                                         <Button
-                                                            disabled=Signal::derive(move || {
-                                                                let day_string = day.format(DAY_FORMAT).to_string();
-                                                                logging::log!(
-                                                                    "Button {} disabled rendering being processed", day_string
-                                                                );
-                                                                let calendar = calendar.get();
+                                                            // Disabled if no courts are available on this day
+                                                            // disabled=Signal::derive(move || {
+                                                            // let day_string = day.format(DATE_FORMAT).to_string();
+                                                            // let calendar = filtered_calendar.get();
+                                                            // let day_planning = calendar.get(&day_string);
+                                                            // day_planning.is_none()
+                                                            // || day_planning.unwrap().slots.is_empty()
+                                                            // || day_planning.unwrap().weekday
+                                                            // < chrono::Local::now().format(DATE_FORMAT).to_string()
+                                                            // })
+                                                            color=Signal::derive(move || {
+                                                                let day_string = day.format(DATE_FORMAT).to_string();
+                                                                let calendar = filtered_calendar.get();
                                                                 let day_planning = calendar.get(&day_string);
-                                                                day_planning.is_none() || day_planning.unwrap().get().is_none() || day_planning.unwrap().get().unwrap().day < chrono::Local::now().format(DAY_FORMAT).to_string()
-                                                                
+                                                                if day_planning.is_none()
+                                                                    || day_planning.unwrap().slots.is_empty()
+                                                                    || day_planning.unwrap().weekday
+                                                                        < chrono::Local::now().format(DATE_FORMAT).to_string()
+                                                                {
+                                                                    ButtonColor::Error
+                                                                } else {
+                                                                    ButtonColor::Primary
+                                                                }
                                                             })
-                                                            color=ButtonColor::Primary
                                                             on_click=move |_| {
-                                                                set_selected_day.set(day.format(DAY_FORMAT).to_string());
+                                                                let date_string = day.format(DATE_FORMAT).to_string();
                                                                 set_planning
                                                                     .set({
-                                                                        let calendar = calendar.get();
+                                                                        let calendar = filtered_calendar.get();
                                                                         let day_planning = calendar
-                                                                            .get(&selected_day.get())
+                                                                            .get(&date_string)
                                                                             .expect("Selected day not in the calendar");
-                                                                        day_planning
-                                                                            .get()
-                                                                            .expect("Day planning ressource should have been loaded")
-                                                                            .clone()
+                                                                        logging::log!(
+                                                                            "Selected day: {:?} {:?}",day_planning.weekday, date_string
+                                                                        );
+                                                                        (Some(date_string), day_planning.clone())
                                                                     });
                                                                 show.set(true);
                                                             }
@@ -171,37 +188,32 @@ pub fn AvailaibilityCalendar() -> impl IntoView {
         <Modal show>
             <DayAvailaibilityList planning=planning />
         </Modal>
+        <div style="margin-top: 1rem">
+            <p>"filter: " {move || format!("{:#?}", filter.get())}</p>
+            <p>
+                {move || {
+                    let day_planning = if let Some(resource) = calendar
+                        .get()
+                        .days
+                        .get(&planning.get().0.unwrap_or_default())
+                    {
+                        resource.get()
+                    } else {
+                        Some(DayPlanning::default())
+                    };
+                    format!("{:?}", day_planning)
+                }}
+            </p>
+            <p>{move || { format!("{:#?}", planning.get()) }}</p>
+        // <Button
+        // // Show previous days
+        // on:click=move |_| {
+        // calendar.get().filtered(&filter.get());
+        // }
+        // color=ButtonColor::Warning
+        // >
+        // "Filter"
+        // </Button>
+        </div>
     }
-}
-
-fn get_next_days_from(first_day: DateTime<Local>) -> Vec<Vec<DateTime<Local>>> {
-    let now_day = first_day.weekday();
-    let days_since_previous_monday = now_day.days_since(Weekday::Mon);
-
-    // The first day we want to show is always a Monday
-    let first_day_shown = first_day
-        .checked_sub_days(Days::new(days_since_previous_monday as u64))
-        .expect("Calendar day underflow");
-
-    // We get all the `NB_DAYS_SHOWN` starting previous Monday
-    let days_shown: Vec<DateTime<Local>> = (0..NB_DAYS_SHOWN)
-        .map(|i| {
-            first_day_shown
-                .checked_add_days(Days::new(i as u64))
-                .expect("Calendar day overflows")
-        })
-        .collect();
-
-    // Split the days shown into days per week
-    days_shown
-        .chunks(DAYS_PER_WEEK as usize)
-        .map(|s| s.into())
-        .collect()
-}
-
-fn flatten_days(days: Vec<Vec<DateTime<Local>>>) -> Vec<String> {
-    days.iter()
-        .flatten()
-        .map(|day_shown| day_shown.format(DAY_FORMAT).to_string())
-        .collect()
 }

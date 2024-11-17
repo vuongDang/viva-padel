@@ -1,4 +1,4 @@
-pub const DAY_PLANNING_CASE: &str = r#"{
+{
   "@context": "/contexts/ClubPlayground",
   "@id": "/clubs/playgrounds",
   "@type": "hydra:Collection",
@@ -3374,12 +3374,12 @@ pub const DAY_PLANNING_CASE: &str = r#"{
   ],
   "hydra:totalItems": 8,
   "hydra:view": {
-    "@id": "/clubs/playgrounds/plannings/2024-10-04?club.id=a126b4d4-a2ee-4f30-bee3-6596368368fb&from=10%3A00&to=23%3A00&activities.id=ce8c306e-224a-4f24-aa9d-6500580924dc&bookingType=Unique",
+    "@id": "/clubs/playgrounds/plannings/2024-11-11?club.id=a126b4d4-a2ee-4f30-bee3-6596368368fb&from=10%3A00&to=23%3A00&activities.id=ce8c306e-224a-4f24-aa9d-6500580924dc&bookingType=Unique",
     "@type": "hydra:PartialCollectionView"
   },
   "hydra:search": {
     "@type": "hydra:IriTemplate",
-    "hydra:template": "/clubs/playgrounds/plannings/2024-10-04{?id,id[],name,club.id,club.id[],surface.id,surface.id[],activities.id,activities.id[],bookingType,bookingType[],order[position],order[name],enabled,indoor}",
+    "hydra:template": "/clubs/playgrounds/plannings/2024-11-11{?id,id[],name,club.id,club.id[],surface.id,surface.id[],activities.id,activities.id[],bookingType,bookingType[],order[position],order[name],enabled,indoor}",
     "hydra:variableRepresentation": "BasicRepresentation",
     "hydra:mapping": [
       {
@@ -3474,4 +3474,4 @@ pub const DAY_PLANNING_CASE: &str = r#"{
       }
     ]
   }
-}"#;
+}

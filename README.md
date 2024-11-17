@@ -11,3 +11,8 @@ This app is used to book padel fields in LeGarden of Rennes.
 
 1. Login page if not logged
 2.
+
+## Upgrades
+
+- use signal.with instead of signal.get
+- work on conditional dependencies

@@ -1,31 +1,45 @@
 use chrono::{NaiveTime, Weekday};
 use leptos::*;
-use shared::app_structs::Filter;
-use shared::{CLOSING_TIME, OPENING_TIME, TIME_FORMAT};
+use shared::{frontend::calendar_ui::Filter, CLOSING_TIME, OPENING_TIME, TIME_FORMAT};
 use std::collections::HashSet;
 use thaw::*;
 
 const DAYS_PER_WEEK: u8 = 7;
 
 #[component]
-pub fn FilterView() -> impl IntoView {
+pub fn FilterView(filter: RwSignal<Filter>) -> impl IntoView {
     // Days on which the user wants to play
-    let weekdays = create_rw_signal(HashSet::new());
+    let weekdays: RwSignal<HashSet<String>> = create_rw_signal(
+        filter
+            .get_untracked()
+            .days_of_the_week
+            .into_iter()
+            .collect(),
+    );
 
     // Time slots in which the user wants to play
-    let time_slots = create_rw_signal(vec![default_time_slot()]);
+    type TimeSlotsType = RwSignal<Vec<(RwSignal<Option<NaiveTime>>, RwSignal<Option<NaiveTime>>)>>;
+    let time_slots: TimeSlotsType = create_rw_signal(
+        filter
+            .get_untracked()
+            .start_time_slots
+            .into_iter()
+            .map(|(begin, end)| {
+                (
+                    create_rw_signal(NaiveTime::parse_from_str(&begin, TIME_FORMAT).ok()),
+                    create_rw_signal(NaiveTime::parse_from_str(&end, TIME_FORMAT).ok()),
+                )
+            })
+            .collect(),
+    );
 
     // If the user also wants to include outdoor courts
-    let with_outdoor = create_rw_signal(true);
+    let with_outdoor = create_rw_signal(filter.get_untracked().with_outdoor);
 
     // The filter that results from the UI inputs
-    let filter = Signal::derive(move || {
+    let update_filter = Signal::derive(move || {
         let name = String::default();
-        let days_of_the_week = weekdays
-            .get()
-            .into_iter()
-            .map(|weekday: String| weekday.parse::<Weekday>().unwrap())
-            .collect();
+        let days_of_the_week = weekdays.get().into_iter().collect();
         let start_time_slots = time_slots
             .get()
             .into_iter()
@@ -37,23 +51,24 @@ pub fn FilterView() -> impl IntoView {
             })
             .collect();
         let with_outdoor = with_outdoor.get();
-        Filter {
+        filter.set(Filter {
             name,
             days_of_the_week,
             start_time_slots,
             with_outdoor,
-        }
+        })
     });
     let header_style = "background-color: #0078ffaa; padding: 20px;";
     let content_style = "background-color: #0078ff88; padding: 20px;";
 
     view! {
+        <span hidden>{move || format!("{:?}", update_filter.get())}</span>
         <Layout>
             <LayoutHeader style=header_style>"Days"</LayoutHeader>
             <Layout style=content_style>
                 <Space align=SpaceAlign::Center>
                     <CheckboxGroup value=weekdays>
-                        {get_weekdays()
+                        {get_weekdays_ordered()
                             .iter()
                             .map(|weekday| {
                                 view! { <CheckboxItem label=weekday.clone() key=weekday /> }
@@ -107,6 +122,12 @@ pub fn FilterView() -> impl IntoView {
 }
 
 fn get_weekdays() -> HashSet<String> {
+    (0..DAYS_PER_WEEK)
+        .map(|weekday| Weekday::try_from(weekday).unwrap().to_string())
+        .collect()
+}
+
+fn get_weekdays_ordered() -> Vec<String> {
     (0..DAYS_PER_WEEK)
         .map(|weekday| Weekday::try_from(weekday).unwrap().to_string())
         .collect()

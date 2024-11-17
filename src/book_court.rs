@@ -5,7 +5,7 @@ mod filter;
 use crate::book_court::availaibility_calendar::AvailaibilityCalendar;
 use crate::book_court::filter::FilterView;
 use leptos::*;
-use shared::app_structs::Filter;
+use shared::frontend::calendar_ui::Filter;
 use thaw::mobile::*;
 use thaw::*;
 
@@ -13,15 +13,15 @@ use thaw::*;
 pub fn BookCourtView() -> impl IntoView {
     // let value = create_rw_signal(String::from("calendar"));
     let selected_tab = create_rw_signal(String::from("filter"));
-    let (active_filter, set_active_filter) = create_signal(Filter::default());
+    let filter = create_rw_signal(Filter::default());
 
     view! {
         <Tabs value=selected_tab>
             <Tab key="filter" label="Filter">
-                <FilterView />
+                <FilterView filter />
             </Tab>
             <Tab key="calendar" label="Calendar">
-                <AvailaibilityCalendar />
+                <AvailaibilityCalendar filter />
             </Tab>
             <Tab key="next_courts" label="Next Courts">
                 "Next courts"

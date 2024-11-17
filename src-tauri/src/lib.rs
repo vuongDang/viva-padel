@@ -14,7 +14,7 @@ pub fn run() {
     // let future = test_reqwest();
     // rt.block_on(future);
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_day_planning])
+        .invoke_handler(tauri::generate_handler![get_date_planning])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
