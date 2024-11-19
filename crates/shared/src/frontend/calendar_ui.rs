@@ -106,34 +106,39 @@ impl Calendar {
         // Filter out resources that have not loaded yet
         let mut filtered_calendar: BTreeMap<DateKey, DayPlanning> = self.clone().days.into_iter().filter_map(|(day, day_planning)| day_planning.get().map(|day_planning| (day, day_planning))).collect();
         filtered_calendar = 
-        filtered_calendar.into_iter().map(|(day, mut day_planning)| {
-            // Check if day match the filter
-            if !filter.days_of_the_week.contains(&day_planning.weekday) {
-                day_planning.slots = BTreeMap::new();
-                return (day, day_planning);
-            }
-
-            // Check time slots 
-            let day_planning_filtered: BTreeMap<StartTime, Slot> =
-            day_planning.slots.into_iter().filter_map(|(start_time, mut slot)| {
-                // If start time is  in any of the filter time slots
-                let slot_is_in_filter = filter.start_time_slots.iter().any(|(begin, end)| {
-                    &start_time >= begin && &start_time <= end
-                });
-                if !slot_is_in_filter {
-                    return None;
+            filtered_calendar.into_iter().map(|(day, mut day_planning)| {
+                // Check if day match the filter
+                if !filter.days_of_the_week.contains(&day_planning.weekday) {
+                    day_planning.slots = BTreeMap::new();
+                    return (day, day_planning);
                 }
-                // Remove slots that only contains outdoor courts if filtered out
-                if !filter.with_outdoor {
-                    slot.available_courts.retain(|court| court.is_indoor);
-                    // day_planning.slots.get_mut(start_time).unwrap().available_courts.retain(|court| court.is_indoor);
-                } 
 
-                Some((start_time, slot))
+                // Check time slots 
+                let day_planning_filtered: BTreeMap<StartTime, Slot> =
+                day_planning.slots.into_iter().filter_map(|(start_time, mut slot)| {
+                    // If start time is  in any of the filter time slots
+                    let slot_is_in_filter = filter.start_time_slots.iter().any(|(begin, end)| {
+                        &start_time >= begin && &start_time <= end
+                    });
+                    if !slot_is_in_filter {
+                        return None;
+                    }
+                    // Remove slots that only contains outdoor courts if filtered out
+                    if !filter.with_outdoor {
+                        slot.available_courts.retain(|court| court.is_indoor);
+                        // day_planning.slots.get_mut(start_time).unwrap().available_courts.retain(|court| court.is_indoor);
+                    } 
+
+                    if slot.available_courts.is_empty() {
+                        None
+                    } else {
+
+                        Some((start_time, slot))
+                    }
+                }).collect();
+
+                (day.clone(), DayPlanning::new(&day_planning.weekday, day_planning_filtered))
             }).collect();
-
-            (day.clone(), DayPlanning::new(&day_planning.weekday, day_planning_filtered))
-        }).collect();
         filtered_calendar 
     }
 
