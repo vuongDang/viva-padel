@@ -18,15 +18,16 @@ pub fn DayAvailaibilityItem(time: String, sl: Slot) -> impl IntoView {
     view! {
         <tr>
             <td>
-                <p class="day-avaibility-item-time">{time}</p>
-                <p>
+                <Space align=SpaceAlign::Center>
+                    <p style="font-size: large; font-style: italic; ">{time}</p>
                     {sl
                         .available_courts
-                        .iter()
-                        .map(|court| court.name.to_string())
-                        .collect::<Vec<String>>()
-                        .join(" - ")}
-                </p>
+                        .into_iter()
+                        .map(|court| {
+                            view! { <Button style="margin:2px">{court.name.to_string()}</Button> }
+                        })
+                        .collect_view()}
+                </Space>
             </td>
         </tr>
     }

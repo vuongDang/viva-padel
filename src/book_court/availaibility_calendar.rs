@@ -1,19 +1,23 @@
-use crate::book_court::day_availability::DayAvailaibilityList;
+use crate::book_court::{day_availability::DayAvailaibilityList, update_calendar};
 use chrono::{DateTime, Days, Local, Weekday};
 use leptos::*;
-use shared::frontend::{calendar_ui::{DayPlanning, Filter, Calendar, DateKey}, utils::{get_next_days_from, flatten_days}};
+use shared::frontend::{
+    calendar_ui::{Calendar, DateKey, DayPlanning, Filter},
+    utils::{flatten_days, get_next_days_from},
+};
+use shared::{DATE_FORMAT, DAYS_PER_WEEK, NB_DAYS_SHOWN};
 use std::collections::BTreeMap;
-use shared::{DATE_FORMAT, NB_DAYS_SHOWN, DAYS_PER_WEEK};
 use thaw::*;
 
 #[component]
-pub fn AvailaibilityCalendar(filter: RwSignal<Filter>) -> impl IntoView {
+pub fn AvailaibilityCalendar(
+    filter: RwSignal<Filter>,
+    calendar: RwSignal<Calendar>,
+    filtered_calendar: Signal<BTreeMap<DateKey, DayPlanning>>,
+) -> impl IntoView {
     // Days shown by the UI
     let (days_shown, set_days_shown) = create_signal::<Vec<Vec<DateTime<Local>>>>(vec![]);
     let show = create_rw_signal(false);
-
-    // Court availabilities for all the days loaded 
-    let calendar: RwSignal<Calendar> = create_rw_signal(Calendar::new());
 
     // Planning for selected day
     let (planning, set_planning) = create_signal((None, DayPlanning::default()));
@@ -22,33 +26,7 @@ pub fn AvailaibilityCalendar(filter: RwSignal<Filter>) -> impl IntoView {
     let now_datetime = chrono::Local::now();
     set_days_shown.update(|days_shown| *days_shown = get_next_days_from(now_datetime));
 
-    // Closure to update the calendar
-    let update_calendar = move  || {
-        let flatten_days = flatten_days(days_shown.get_untracked());
-        calendar.update(|cal| {
-            for day_shown  in flatten_days.into_iter() {
-                cal.days.entry(day_shown.clone()).or_insert(create_resource(
-                    || (),
-                    move |_| {
-                        let day_shown_clone = day_shown.clone();
-                        async move { 
-                            let d = DayPlanning::retrieve(&day_shown_clone).await ;
-                            d
-                        }
-                    }
-                ));
-            }
-        });
-        logging::log!("Updated calendar: {:?}",calendar.get_untracked().days.keys());
-    };
-    update_calendar();
-
-    // The calendar that is displayed after applying the filter
-    let filtered_calendar: Signal<BTreeMap<DateKey, DayPlanning>>   = Signal::derive(move || {
-        // leptos::logging::log!("Filtering!");
-        calendar.get().filtered(&filter.get())
-    });
-
+    update_calendar(calendar, flatten_days(days_shown.get_untracked()));
 
     view! {
         <span hidden>{move || format!("{:?}", filtered_calendar.get())}</span>
@@ -65,7 +43,7 @@ pub fn AvailaibilityCalendar(filter: RwSignal<Filter>) -> impl IntoView {
                                     .unwrap();
                                 *days_shown = get_next_days_from(next_first_day_shown);
                             });
-                        update_calendar();
+                        update_calendar(calendar, flatten_days(days_shown.get()));
                         leptos::logging::log!("Prev!");
                     }
                     color=ButtonColor::Warning
@@ -85,7 +63,7 @@ pub fn AvailaibilityCalendar(filter: RwSignal<Filter>) -> impl IntoView {
                                     .unwrap();
                                 *days_shown = get_next_days_from(next_first_day_shown);
                             });
-                        update_calendar();
+                        update_calendar(calendar, flatten_days(days_shown.get()));
                         leptos::logging::log!("Next!");
                     }
                     color=ButtonColor::Warning
