@@ -1,9 +1,10 @@
 //! Easy to use structures for our application
-use crate::{server_structs::DayPlanningResponse, DATE_FORMAT, frontend::utils::*};
+use crate::{server_structs::DayPlanningResponse, DATE_FORMAT, frontend::utils::*, OPENING_TIME, CLOSING_TIME};
 use chrono::Datelike;
 use leptos::{SignalGet, create_resource};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::cmp::{PartialEq, Eq};
 
 /// Time at which starts a booking slot
 pub type StartTime = String;
@@ -11,7 +12,8 @@ pub type StartTime = String;
 pub type DateKey = String;
 
 /// A filter used to specify which padel courts we want to book
-#[derive(Debug, Clone)]
+#[allow(clippy::derived_hash_with_manual_eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]
 pub struct Filter {
     pub name: String,
     pub days_of_the_week: Vec<String>,
@@ -96,7 +98,7 @@ impl Calendar {
                 move |_| {
                     let day_clone = day.clone();
                     async move { 
-                        DayPlanning::retrieve(&day_clone).await 
+                        DayPlanning::retrieve(&day_clone).await.expect("Failed to retrieve plannings")
                     }}));
         }
     }
@@ -157,13 +159,26 @@ impl std::fmt::Debug for Calendar {
 
 impl Default for Filter {
     fn default() -> Self {
-        Filter {
-            name: "".into(),
+        Filter{
+            name: "default".to_string(),
             days_of_the_week: vec!["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].into_iter().map(|day| day.into()).collect(),
-            start_time_slots: vec!(("09:00".into(), "22:00".into())),
+            start_time_slots: vec!((OPENING_TIME.into(), CLOSING_TIME.into())),
             with_outdoor: true
         }
-        
+    }
+}
+
+impl PartialEq for Filter {
+    fn eq(&self, other: &Self) -> bool  {
+        self.name == other.name
+    }
+}
+
+impl Filter {
+    pub fn default_filters() -> HashMap<String, Filter> {
+        let mut filters = HashMap::new();
+        filters.insert("default".to_string(), Filter::default());
+        filters
     }
 }
 

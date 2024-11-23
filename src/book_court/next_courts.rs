@@ -1,7 +1,7 @@
 use crate::book_court::day_availability::DayAvailaibilityItem;
 use leptos::*;
 use leptos_dom::logging;
-use shared::frontend::calendar_ui::{Calendar, DateKey, DayPlanning, Filter, Slot, StartTime};
+use shared::frontend::calendar_ui::{Calendar, DateKey, DayPlanning,  Slot, StartTime};
 use shared::DATE_FORMAT;
 use std::collections::BTreeMap;
 use thaw::*;
@@ -10,7 +10,6 @@ const NB_ITEMS_AT_START: usize = 3;
 
 #[component]
 pub fn NextCourtsView(
-    filter: RwSignal<Filter>,
     calendar: RwSignal<Calendar>,
     filtered_calendar: Signal<BTreeMap<DateKey, DayPlanning>>,
 ) -> impl IntoView {

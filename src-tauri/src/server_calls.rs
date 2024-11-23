@@ -1,7 +1,7 @@
-use shared::errors::Error;
 use shared::app_structs::*;
+use shared::errors::Error;
 use shared::server_structs;
-use std::{path::PathBuf, fs::File, io::Write};
+use std::{fs::File, io::Write, path::PathBuf};
 
 const BASE_URL: &str = "https://api-v3.doinsport.club/clubs/playgrounds";
 const CLUB_ID: &str = "club.id=a126b4d4-a2ee-4f30-bee3-6596368368fb";
@@ -23,7 +23,6 @@ pub(crate) async fn get_date_planning(date: String) -> Result<DayPlanning, Error
     Ok(parsed.into())
 }
 
-
 fn print_to_test_file(path: PathBuf, content: String) -> std::io::Result<()> {
     let dir: String = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let dir = std::env::current_dir()?;
@@ -34,5 +33,3 @@ fn print_to_test_file(path: PathBuf, content: String) -> std::io::Result<()> {
     println!("Wrote to {:?}", full_path);
     Ok(())
 }
-
-

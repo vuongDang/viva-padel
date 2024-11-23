@@ -2,7 +2,7 @@ use crate::book_court::{day_availability::DayAvailaibilityList, update_calendar}
 use chrono::{DateTime, Days, Local, Weekday};
 use leptos::*;
 use shared::frontend::{
-    calendar_ui::{Calendar, DateKey, DayPlanning, Filter},
+    calendar_ui::{Calendar, DateKey, DayPlanning},
     utils::{flatten_days, get_next_days_from},
 };
 use shared::{DATE_FORMAT, DAYS_PER_WEEK, NB_DAYS_SHOWN};
@@ -11,7 +11,6 @@ use thaw::*;
 
 #[component]
 pub fn AvailaibilityCalendar(
-    filter: RwSignal<Filter>,
     calendar: RwSignal<Calendar>,
     filtered_calendar: Signal<BTreeMap<DateKey, DayPlanning>>,
 ) -> impl IntoView {
@@ -167,7 +166,6 @@ pub fn AvailaibilityCalendar(
             <DayAvailaibilityList planning=planning />
         </Modal>
         <div style="margin-top: 1rem">
-            <p>"filter: " {move || format!("{:#?}", filter.get())}</p>
             <p>
                 {move || {
                     let day_planning = if let Some(resource) = calendar
@@ -183,15 +181,6 @@ pub fn AvailaibilityCalendar(
                 }}
             </p>
             <p>{move || { format!("{:#?}", planning.get()) }}</p>
-        // <Button
-        // // Show previous days
-        // on:click=move |_| {
-        // calendar.get().filtered(&filter.get());
-        // }
-        // color=ButtonColor::Warning
-        // >
-        // "Filter"
-        // </Button>
         </div>
     }
 }
