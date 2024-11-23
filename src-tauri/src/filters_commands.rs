@@ -21,9 +21,11 @@ pub(crate) async fn save_filters(app_handle: tauri::AppHandle,  filters: HashMap
 #[tauri::command]
 pub(crate) async fn get_stored_filters(app_handle: tauri::AppHandle) -> Result<HashMap<String, Filter>, Error> {
     if let Some(store) = app_handle.get_store(FILTERS_STORE) {
-        let store_json = store.get(FILTERS_KEY).ok_or_else(|| Error::StoreError("Filters key not present in store".to_string()))?;
-        let res: HashMap<String, Filter> = serde_json::from_value(store_json)?;
-        Ok(res)
+        if let Some(store_json) = store.get(FILTERS_KEY) {
+            serde_json::from_value(store_json)?
+        } else {
+            Ok(Filter::default_filters())
+        }
     } else {
         Err(Error::StoreError("Store not loaded".to_string()))
     }

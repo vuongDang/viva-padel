@@ -10,17 +10,11 @@ use local_dev_server_calls::*;
 mod filters_commands;
 use filters_commands::*;
 
-use shared::frontend::calendar_ui::Filter;
-use std::{collections::HashMap, sync::Mutex};
 use tauri::Manager;
 use tauri_plugin_store::StoreExt;
 
 pub(crate) const FILTERS_STORE: &str = "filters.json";
 pub(crate) const FILTERS_KEY: &str = "filters";
-
-struct AppData {
-    pub(crate) filters: HashMap<String, Filter>,
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -28,7 +22,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
             // Load the store
-            let filters_store = app.store(FILTERS_STORE)?;
+            let _filters_store = app.store(FILTERS_STORE)?;
 
             // Open devtools
             let window = app.get_webview_window("main").unwrap();
