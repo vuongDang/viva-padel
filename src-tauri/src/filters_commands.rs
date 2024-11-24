@@ -6,6 +6,7 @@ use shared::errors::Error;
 use crate::{FILTERS_STORE, FILTERS_KEY};
 
 
+#[tracing::instrument(skip(app_handle))]
 #[tauri::command]
 pub(crate) async fn save_filters(app_handle: tauri::AppHandle,  filters: HashMap<String, Filter>) -> Result<(), Error> {
     // Save the new filters to disk
@@ -18,11 +19,13 @@ pub(crate) async fn save_filters(app_handle: tauri::AppHandle,  filters: HashMap
     }
 }
 
+#[tracing::instrument(skip(app_handle))]
 #[tauri::command]
 pub(crate) async fn get_stored_filters(app_handle: tauri::AppHandle) -> Result<HashMap<String, Filter>, Error> {
     if let Some(store) = app_handle.get_store(FILTERS_STORE) {
         if let Some(store_json) = store.get(FILTERS_KEY) {
-            serde_json::from_value(store_json)?
+            let res: HashMap<String, Filter> = serde_json::from_value(store_json)?;
+            Ok(res)
         } else {
             Ok(Filter::default_filters())
         }

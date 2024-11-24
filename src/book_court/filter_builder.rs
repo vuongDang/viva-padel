@@ -9,6 +9,7 @@ type TimeSlotsType = RwSignal<Vec<(RwSignal<Option<NaiveTime>>, RwSignal<Option<
 const HEADER_STYLE: &str = "background-color: #0078ffaa; padding: 20px;";
 const CONTENT_STYLE: &str = "background-color: #0078ff88; padding: 20px;";
 
+#[tracing::instrument]
 #[component]
 pub fn FilterView(
     active_filter: RwSignal<Option<Filter>>,

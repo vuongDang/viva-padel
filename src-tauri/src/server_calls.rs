@@ -11,6 +11,7 @@ const CLOSING_HOUR: &str = "23:00";
 
 /// Call to get the planning of available fields
 // Example request: 'https://api-v3.doinsport.club/clubs/playgrounds/plannings/2024-07-22?club.id=a126b4d4-a2ee-4f30-bee3-6596368368fb&from=21:30&to=23:59:59&activities.id=ce8c306e-224a-4f24-aa9d-6500580924dc&bookingType=unique'
+#[tracing::instrument]
 #[tauri::command]
 pub(crate) async fn get_date_planning(date: String) -> Result<DayPlanning, Error> {
     let request = format!(
@@ -23,6 +24,7 @@ pub(crate) async fn get_date_planning(date: String) -> Result<DayPlanning, Error
     Ok(parsed.into())
 }
 
+// Used to store results to disk for local development
 fn print_to_test_file(path: PathBuf, content: String) -> std::io::Result<()> {
     let dir: String = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let dir = std::env::current_dir()?;

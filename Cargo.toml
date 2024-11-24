@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 leptos = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 js-sys = "0.3"
@@ -21,7 +23,9 @@ leptos_router = { version = "0.6.15", features = ["csr"] }
 members = [ "crates/shared", "crates/testcases", "src-tauri"]
 
 [workspace.dependencies]
-leptos = { version = "0.6", features = ["csr"] }
+leptos = { version = "0.6", features = ["csr", "tracing"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
 chrono = "0.4"
 shared = { path = "./crates/shared/" }
 testcases = { path = "./crates/testcases/" }

@@ -29,8 +29,9 @@ struct GetFilterArgs { }
 
 
 impl DayPlanning {
-   /// Retrieve the padel courts availaibility planning from the server for the specified date
-   pub async fn retrieve(date: &str) -> Result<DayPlanning, Error> {
+    /// Retrieve the padel courts availaibility planning from the server for the specified date
+    #[tracing::instrument]
+    pub async fn retrieve(date: &str) -> Result<DayPlanning, Error> {
         let args = to_value(&PlanningArgs { date })?;
         let planning: DayPlanning = from_value(invoke("get_date_planning", args).await)?;
         Ok(planning)
@@ -40,6 +41,7 @@ impl DayPlanning {
 
 impl Filter {
     /// Save filters to the disk.
+    #[tracing::instrument]
     pub async fn save_filters(filters: HashMap<String, Filter>) -> Result<(), Error> {
         let args = to_value(&SaveFilterArgs { filters })?;
         let res: JsValue = invoke("save_filters", args).await;
@@ -48,6 +50,7 @@ impl Filter {
 
     /// Return filters that were saved on disk.
     /// If no filters were saved we return a default filter.
+    #[tracing::instrument]
     pub async fn get_stored_filters() -> Result<HashMap<String, Filter>, Error> {
         let args = to_value(&GetFilterArgs {})?;
         let filters_json = invoke("get_stored_filters", args).await;

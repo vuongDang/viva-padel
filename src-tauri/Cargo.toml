@@ -23,6 +23,9 @@ shared = { workspace = true }
 async-std = { version = "1", optional = true }
 testcases = { workspace = true, optional = true }
 tauri-plugin-store = "2.0.0"
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
 
 [features]
 default = ["local_dev"]
