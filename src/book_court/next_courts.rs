@@ -1,10 +1,10 @@
 use crate::book_court::day_availability::DayAvailaibilityItem;
 use leptos::*;
-use leptos_dom::logging;
-use shared::frontend::calendar_ui::{Calendar, DateKey, DayPlanning,  Slot, StartTime};
+use shared::frontend::calendar_ui::{Calendar, DateKey, DayPlanning, Slot, StartTime};
 use shared::DATE_FORMAT;
 use std::collections::BTreeMap;
 use thaw::*;
+use tracing::*;
 
 const NB_ITEMS_AT_START: usize = 3;
 
@@ -15,13 +15,13 @@ pub fn NextCourtsView(
 ) -> impl IntoView {
     let nb_items = create_rw_signal(NB_ITEMS_AT_START);
     let next_courts_found = Signal::derive(move || {
+        trace!("NextCourtsView: next_courts_found signal");
         let mut next_date_to_poll = chrono::Local::now().date_naive();
         let mut next_courts: Vec<((String, DateKey), StartTime, Slot)> = vec![];
         let mut nb_courts_found = 0;
         while nb_items.get() > nb_courts_found {
             let day_planning = filtered_calendar.get();
             let next_date_string = &next_date_to_poll.format(DATE_FORMAT).to_string();
-            leptos::logging::log!("Polling date: {:?}", next_date_string);
             let time_slot = day_planning.get(next_date_string);
             if time_slot.is_none() {
                 // Calendar have not fetched up to this date yet

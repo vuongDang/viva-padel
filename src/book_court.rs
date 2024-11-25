@@ -11,6 +11,8 @@ use leptos::*;
 use shared::frontend::calendar_ui::{Calendar, Filter, DayPlanning, DateKey};
 use thaw::mobile::*;
 use thaw::*;
+use tracing::*;
+
 #[component]
 pub fn BookCourtView() -> impl IntoView {
     let selected_tab = create_rw_signal(String::from("filter"));
@@ -26,7 +28,6 @@ pub fn BookCourtView() -> impl IntoView {
 
     // The calendar obtained after applying the filter
     let filtered_calendar: Signal<BTreeMap<DateKey, DayPlanning>> = Signal::derive(move || {
-        // leptos::logging::log!("Filtering!");
         calendar.get().filtered(&active_filter.get().unwrap())
     });
 
@@ -67,7 +68,7 @@ pub(crate) fn update_calendar(calendar: RwSignal<Calendar>, dates: Vec<String>) 
             ));
         }
     });
-    logging::log!("Updated calendar: {:?}",calendar.get_untracked().days.keys());
+    trace!("Updated calendar: {:?}",calendar.get_untracked().days.keys());
 }
 
 #[component]

@@ -5,6 +5,7 @@ use leptos::{SignalGet, create_resource};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::cmp::{PartialEq, Eq};
+use tracing::*;
 
 /// Time at which starts a booking slot
 pub type StartTime = String;
@@ -105,6 +106,7 @@ impl Calendar {
 
     /// Produce a trimmed calendar based on the provided filter
     pub fn filtered(&self, filter: &Filter) -> BTreeMap<DateKey, DayPlanning> {
+        trace!("Creating a filtered calender");
         // Filter out resources that have not loaded yet
         let mut filtered_calendar: BTreeMap<DateKey, DayPlanning> = self.clone().days.into_iter().filter_map(|(day, day_planning)| day_planning.get().map(|day_planning| (day, day_planning))).collect();
         filtered_calendar = 

@@ -43,7 +43,6 @@ pub fn AvailaibilityCalendar(
                                 *days_shown = get_next_days_from(next_first_day_shown);
                             });
                         update_calendar(calendar, flatten_days(days_shown.get()));
-                        leptos::logging::log!("Prev!");
                     }
                     color=ButtonColor::Warning
                 >
@@ -63,7 +62,6 @@ pub fn AvailaibilityCalendar(
                                 *days_shown = get_next_days_from(next_first_day_shown);
                             });
                         update_calendar(calendar, flatten_days(days_shown.get()));
-                        leptos::logging::log!("Next!");
                     }
                     color=ButtonColor::Warning
                 >
