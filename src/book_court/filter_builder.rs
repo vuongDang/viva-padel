@@ -3,6 +3,7 @@ use leptos::{spawn_local, *};
 use shared::{errors::Error, frontend::calendar_ui::Filter, CLOSING_TIME, OPENING_TIME, TIME_FORMAT};
 use std::collections::{HashMap, HashSet};
 use thaw::*;
+use tracing::*;
 
 const DAYS_PER_WEEK: u8 = 7;
 type TimeSlotsType = RwSignal<Vec<(RwSignal<Option<NaiveTime>>, RwSignal<Option<NaiveTime>>)>>;
@@ -74,6 +75,7 @@ pub fn FilterView(
             with_outdoor,
         };
 
+        trace!("Saving filter: {:?}", filter);
         // Save it in the stored filters
         filters.update(|filters| {
             if let Some(filters) = filters {
@@ -93,6 +95,8 @@ pub fn FilterView(
     // Remove a filter
     let remove_filter = move || {
         let name = active_filter.get().unwrap().name;
+
+        trace!("Removing filter: {:?}", name);
         // Save it in the stored filters
         filters.update(|filters| {
             if let Some(filters) = filters {

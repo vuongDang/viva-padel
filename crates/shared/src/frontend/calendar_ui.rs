@@ -23,14 +23,14 @@ pub struct Filter {
 }
 
 /// The planning of courts availaibility for a day
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
 pub struct DayPlanning {
     pub weekday: String,
     pub slots: BTreeMap<StartTime, Slot>,
 }
 
 /// The available courts for a slot
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq, )]
 pub struct Slot {
     pub available_courts: Vec<PadelCourt>,
     pub duration: BookingDuration,
@@ -38,7 +38,7 @@ pub struct Slot {
 
 /// The duration of a booking
 /// Note: Currently we only take care of 1h30 booking duration
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq)]
 pub enum BookingDuration {
     NinetyMin(),
     TwoHours(),
@@ -46,7 +46,7 @@ pub enum BookingDuration {
 }
 
 /// Information of a padel court
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq)]
 pub struct PadelCourt {
     pub name: String,
     pub is_indoor: bool,

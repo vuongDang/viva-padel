@@ -27,8 +27,10 @@ pub fn BookCourtView() -> impl IntoView {
     let calendar: RwSignal<Calendar> = create_rw_signal(Calendar::new());
 
     // The calendar obtained after applying the filter
-    let filtered_calendar: Signal<BTreeMap<DateKey, DayPlanning>> = Signal::derive(move || {
-        calendar.get().filtered(&active_filter.get().unwrap())
+    let filtered_calendar: Memo<BTreeMap<DateKey, DayPlanning>> = create_memo(move |_| {
+        let res = calendar.get().filtered(&active_filter.get().unwrap());
+        trace!("filtered_calendar: {:?}", res.keys());
+        res
     });
 
 

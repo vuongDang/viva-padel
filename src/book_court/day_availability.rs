@@ -56,15 +56,18 @@ pub(crate) fn DayAvailaibilityList(
             </thead>
             <tbody>
                 {move || {
-                    planning
-                        .get()
-                        .1
-                        .slots
-                        .into_iter()
-                        .map(|(t, s)| {
-                            view! { <DayAvailaibilityItem time=t sl=s /> }
-                        })
-                        .collect_view()
+                    let slots = planning.get().1.slots;
+                    if slots.is_empty() {
+                        view! { <Text>"No available courts"</Text> }
+                    } else {
+                        slots
+                            .into_iter()
+                            .map(|(t, s)| {
+
+                                view! { <DayAvailaibilityItem time=t sl=s /> }
+                            })
+                            .collect_view()
+                    }
                 }}
             </tbody>
         </Table>

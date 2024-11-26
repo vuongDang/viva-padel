@@ -8,11 +8,12 @@ use shared::frontend::{
 use shared::{DATE_FORMAT, DAYS_PER_WEEK, NB_DAYS_SHOWN};
 use std::collections::BTreeMap;
 use thaw::*;
+use tracing::*;
 
 #[component]
 pub fn AvailaibilityCalendar(
     calendar: RwSignal<Calendar>,
-    filtered_calendar: Signal<BTreeMap<DateKey, DayPlanning>>,
+    filtered_calendar: Memo<BTreeMap<DateKey, DayPlanning>>,
 ) -> impl IntoView {
     // Days shown by the UI
     let (days_shown, set_days_shown) = create_signal::<Vec<Vec<DateTime<Local>>>>(vec![]);
@@ -28,7 +29,6 @@ pub fn AvailaibilityCalendar(
     update_calendar(calendar, flatten_days(days_shown.get_untracked()));
 
     view! {
-        <span hidden>{move || format!("{:?}", filtered_calendar.get())}</span>
         <div id="availability-calendar-prev-next-wrapper">
             <div id="availability-calendar-prev">
                 <Button
@@ -102,53 +102,46 @@ pub fn AvailaibilityCalendar(
                                                         move || now_datetime == day,
                                                     )
                                                 >
-                                                    <Transition fallback=move || {
-                                                        view! { <Spinner size=SpinnerSize::Medium /> }
-                                                    }>
-                                                        <Button
-                                                            // Disabled if no courts are available on this day
-                                                            // disabled=Signal::derive(move || {
-                                                            // let day_string = day.format(DATE_FORMAT).to_string();
-                                                            // let calendar = filtered_calendar.get();
-                                                            // let day_planning = calendar.get(&day_string);
-                                                            // day_planning.is_none()
-                                                            // || day_planning.unwrap().slots.is_empty()
-                                                            // || day_planning.unwrap().weekday
-                                                            // < chrono::Local::now().format(DATE_FORMAT).to_string()
-                                                            // })
-                                                            color=Signal::derive(move || {
-                                                                let day_string = day.format(DATE_FORMAT).to_string();
-                                                                let calendar = filtered_calendar.get();
-                                                                let day_planning = calendar.get(&day_string);
-                                                                if day_planning.is_none()
-                                                                    || day_planning.unwrap().slots.is_empty()
-                                                                    || day_planning.unwrap().weekday
-                                                                        < chrono::Local::now().format(DATE_FORMAT).to_string()
-                                                                {
-                                                                    ButtonColor::Error
-                                                                } else {
-                                                                    ButtonColor::Primary
-                                                                }
-                                                            })
-                                                            on_click=move |_| {
-                                                                let date_string = day.format(DATE_FORMAT).to_string();
-                                                                set_planning
-                                                                    .set({
-                                                                        let calendar = filtered_calendar.get();
-                                                                        let day_planning = calendar
-                                                                            .get(&date_string)
-                                                                            .expect("Selected day not in the calendar");
-                                                                        logging::log!(
-                                                                            "Selected day: {:?} {:?}",day_planning.weekday, date_string
-                                                                        );
-                                                                        (Some(date_string), day_planning.clone())
-                                                                    });
-                                                                show.set(true);
+                                                    {move || {
+                                                        let day_string = day.format(DATE_FORMAT).to_string();
+                                                        let calendar = filtered_calendar.get();
+                                                        let day_planning = calendar.get(&day_string).cloned();
+                                                        match day_planning {
+                                                            None => {
+
+                                                                view! { <Spinner size=SpinnerSize::Medium /> }
                                                             }
-                                                        >
-                                                            {format!("{}", day.format("%d - %b"))}
-                                                        </Button>
-                                                    </Transition>
+                                                            Some(day_planning) => {
+                                                                let dp_clone = day_planning.clone();
+                                                                view! {
+                                                                    <Button
+                                                                        color=Signal::derive(move || {
+                                                                            if day_planning.slots.is_empty()
+                                                                                || day_planning.weekday
+                                                                                    < chrono::Local::now().format(DATE_FORMAT).to_string()
+                                                                            {
+                                                                                ButtonColor::Error
+                                                                            } else {
+                                                                                ButtonColor::Primary
+                                                                            }
+                                                                        })
+                                                                        on_click=move |_| {
+                                                                            set_planning
+                                                                                .set({
+                                                                                    trace!(
+                                                                                        "Selected day: {:?} {:?}",dp_clone.weekday, &day_string
+                                                                                    );
+                                                                                    (Some(day_string.to_string()), dp_clone.clone())
+                                                                                });
+                                                                            show.set(true);
+                                                                        }
+                                                                    >
+                                                                        {format!("{}", day.format("%d - %b"))}
+                                                                    </Button>
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
                                                 </div>
                                             }
                                         })
@@ -163,22 +156,5 @@ pub fn AvailaibilityCalendar(
         <Modal show>
             <DayAvailaibilityList planning=planning />
         </Modal>
-        <div style="margin-top: 1rem">
-            <p>
-                {move || {
-                    let day_planning = if let Some(resource) = calendar
-                        .get()
-                        .days
-                        .get(&planning.get().0.unwrap_or_default())
-                    {
-                        resource.get()
-                    } else {
-                        Some(DayPlanning::default())
-                    };
-                    format!("{:?}", day_planning)
-                }}
-            </p>
-            <p>{move || { format!("{:#?}", planning.get()) }}</p>
-        </div>
     }
 }
