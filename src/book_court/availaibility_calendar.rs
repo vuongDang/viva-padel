@@ -1,19 +1,20 @@
-use crate::book_court::{day_availability::DayAvailaibilityList, update_calendar};
+use crate::book_court::{
+    day_availability::DayAvailaibilityList, update_calendar, FilteredCalendar,
+};
 use chrono::{DateTime, Days, Local, Weekday};
 use leptos::*;
 use shared::frontend::{
-    calendar_ui::{Calendar, DateKey, DayPlanning},
+    calendar_ui::{Calendar, DayPlanning},
     utils::{flatten_days, get_next_days_from},
 };
 use shared::{DATE_FORMAT, DAYS_PER_WEEK, NB_DAYS_SHOWN};
-use std::collections::BTreeMap;
 use thaw::*;
 use tracing::*;
 
 #[component]
 pub fn AvailaibilityCalendar(
     calendar: RwSignal<Calendar>,
-    filtered_calendar: Memo<BTreeMap<DateKey, DayPlanning>>,
+    filtered_calendar: FilteredCalendar,
 ) -> impl IntoView {
     // Days shown by the UI
     let (days_shown, set_days_shown) = create_signal::<Vec<Vec<DateTime<Local>>>>(vec![]);
@@ -105,10 +106,13 @@ pub fn AvailaibilityCalendar(
                                                     {move || {
                                                         let day_string = day.format(DATE_FORMAT).to_string();
                                                         let calendar = filtered_calendar.get();
-                                                        let day_planning = calendar.get(&day_string).cloned();
+                                                        let dp_signal: Option<&Signal<Option<DayPlanning>>> = calendar
+                                                            .get(&day_string);
+                                                        let day_planning: Option<DayPlanning> = dp_signal
+                                                            .map(|signal| signal.get())
+                                                            .unwrap_or_default();
                                                         match day_planning {
                                                             None => {
-
                                                                 view! { <Spinner size=SpinnerSize::Medium /> }
                                                             }
                                                             Some(day_planning) => {

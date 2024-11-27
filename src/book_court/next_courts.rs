@@ -1,4 +1,6 @@
-use crate::book_court::day_availability::DayAvailaibilityItem;
+use crate::book_court::{
+    day_availability::DayAvailaibilityItem, update_calendar, FilteredCalendar,
+};
 use leptos::*;
 use shared::frontend::calendar_ui::{Calendar, DateKey, DayPlanning, Slot, StartTime};
 use shared::DATE_FORMAT;
@@ -6,12 +8,12 @@ use std::collections::BTreeMap;
 use thaw::*;
 use tracing::*;
 
-const NB_ITEMS_AT_START: usize = 3;
+const NB_ITEMS_AT_START: usize = 4;
 
 #[component]
 pub fn NextCourtsView(
     calendar: RwSignal<Calendar>,
-    filtered_calendar: Memo<BTreeMap<DateKey, DayPlanning>>,
+    filtered_calendar: FilteredCalendar,
 ) -> impl IntoView {
     let nb_items = create_rw_signal(NB_ITEMS_AT_START);
     let next_courts_found = Signal::derive(move || {
@@ -19,37 +21,46 @@ pub fn NextCourtsView(
         let mut next_date_to_poll = chrono::Local::now().date_naive();
         let mut next_courts: Vec<((String, DateKey), StartTime, Slot)> = vec![];
         let mut nb_courts_found = 0;
+        let filtered_calendar = filtered_calendar.get();
         while nb_items.get() > nb_courts_found {
-            let day_planning = filtered_calendar.get();
-
-            let next_date_string = &next_date_to_poll.format(DATE_FORMAT).to_string();
-            let time_slot = day_planning.get(next_date_string);
-            if time_slot.is_none() {
-                // Calendar have not fetched up to this date yet
-                break;
-            }
-            let slots = &time_slot.unwrap().slots;
-            let weekday = &time_slot.unwrap().weekday;
-            for (start, slot) in slots.iter() {
-                if !slot.available_courts.is_empty() {
-                    next_courts.push((
-                        (weekday.clone(), next_date_string.clone()),
-                        start.clone(),
-                        slot.clone(),
-                    ));
-                    nb_courts_found += 1;
+            let next_date_string = next_date_to_poll.format(DATE_FORMAT).to_string();
+            let day_planning = filtered_calendar.get(&next_date_string);
+            // Check if calendar has started loading up to this date
+            if let Some(day_planning_signal) = day_planning {
+                // Check if calendar has finished loading this date
+                if let Some(time_slot) = day_planning_signal.get() {
+                    let slots = &time_slot.slots;
+                    let weekday = &time_slot.weekday;
+                    for (start, slot) in slots.iter() {
+                        if !slot.available_courts.is_empty() {
+                            next_courts.push((
+                                (weekday.clone(), next_date_string.clone()),
+                                start.clone(),
+                                slot.clone(),
+                            ));
+                            nb_courts_found += 1;
+                        }
+                    }
+                    next_date_to_poll = next_date_to_poll
+                        .checked_add_days(chrono::Days::new(1))
+                        .expect("Reach end of days");
+                    continue;
                 }
             }
-            next_date_to_poll = next_date_to_poll
-                .checked_add_days(chrono::Days::new(1))
-                .expect("Reach end of days");
+            break;
+            // } else {
+            //     // Calendar have not fetched up to this date yet
+            //     break;
+            //     // update_calendar(calendar, vec![next_date_string]);
+            //     // continue;
+            // }
         }
         next_courts
     });
 
     view! {
         <Space align=SpaceAlign::Center>
-            <Text>"Number of items shown: "</Text>
+            <Text>"Number of items loaded per batch: "</Text>
             <InputNumber value=nb_items step=1 />
         </Space>
         <Table style="--thaw-border-color: black; --thaw-background-color: #FDE992">
@@ -63,13 +74,12 @@ pub fn NextCourtsView(
                                 .cloned();
                             let slot_clone = slot.clone();
                             view! {
-                                // let slot: Option<(DateKey, StartTime, Slot)> = next_courts
                                 <tr>
                                     <td style="padding: 0px">
                                         <Show
                                             when=move || { slot_clone.is_some() }
                                             fallback=|| {
-                                                view! { <p>"Not found yet"</p> }
+                                                view! { <Spinner size=SpinnerSize::Medium /> }
                                             }
                                         >
                                             {
@@ -97,7 +107,14 @@ pub fn NextCourtsView(
                         .collect_view()
                 }} <Layout>
                     <Layout>
-                        <Button style="width:100%;">"Load more courts"</Button>
+                        <Button
+                            style="width:100%;"
+                            on_click=move |_| {
+                                nb_items.update(|nb| *nb = *nb + NB_ITEMS_AT_START)
+                            }
+                        >
+                            "Load more courts"
+                        </Button>
                     </Layout>
                 </Layout>
 

@@ -13,9 +13,12 @@ use thaw::mobile::*;
 use thaw::*;
 use tracing::*;
 
+pub(crate) type FilteredCalendar = Signal<BTreeMap<String, Signal<Option<DayPlanning>>>>;
+
 #[component]
 pub fn BookCourtView() -> impl IntoView {
-    let selected_tab = create_rw_signal(String::from("filter"));
+    // let selected_tab = create_rw_signal(String::from("next_courts"));
+    let selected_tab = create_rw_signal(String::from("calendar"));
     let stored_filters = Resource::once(|| async move {Filter::get_stored_filters().await.expect("Failed to retrieved filters stored on disk")});
     let filters = create_rw_signal(None);
 
@@ -27,10 +30,17 @@ pub fn BookCourtView() -> impl IntoView {
     let calendar: RwSignal<Calendar> = create_rw_signal(Calendar::new());
 
     // The calendar obtained after applying the filter
-    let filtered_calendar: Memo<BTreeMap<DateKey, DayPlanning>> = create_memo(move |_| {
-        let res = calendar.get().filtered(&active_filter.get().unwrap());
-        trace!("filtered_calendar: {:?}", res.keys());
-        res
+    let filtered_calendar:  FilteredCalendar = Signal::derive(move || {
+        trace!("Compute new [`filtered_calendar`]");
+        calendar.get().days.clone().into_iter().map(|(date, dp_resource)| {
+            (date, 
+                Signal::derive(move || { 
+
+                    dp_resource.get().map(|dp| DayPlanning::filtered(&dp, &active_filter.get().unwrap()))
+                })
+            )
+        }).collect()
+
     });
 
 
@@ -50,6 +60,22 @@ pub fn BookCourtView() -> impl IntoView {
                 <NextCourtsView calendar filtered_calendar />
             </Tab>
         </Tabs>
+    }
+}
+
+
+#[component]
+pub(crate) fn FilterSelector(active_filter: RwSignal<Option<Filter>>, filters: RwSignal<Option<HashMap<String, Filter>>>) -> impl IntoView {
+let options: Signal<Vec<SelectOption<Filter>>> = Signal::derive(move || 
+        filters.get().unwrap_or_default().into_iter().map(|(name, filter)| SelectOption::new(name, filter)).collect());
+    view! {
+        <Layout>
+            <Space align=SpaceAlign::Center>
+                <Text>"Active filter"</Text>
+                <Select value=active_filter options />
+            </Space>
+            <p>"filter: " {move || format!("{:#?}", active_filter.get())}</p>
+        </Layout>
     }
 }
 
@@ -73,17 +99,3 @@ pub(crate) fn update_calendar(calendar: RwSignal<Calendar>, dates: Vec<String>) 
     trace!("Updated calendar: {:?}",calendar.get_untracked().days.keys());
 }
 
-#[component]
-pub(crate) fn FilterSelector(active_filter: RwSignal<Option<Filter>>, filters: RwSignal<Option<HashMap<String, Filter>>>) -> impl IntoView {
-let options: Signal<Vec<SelectOption<Filter>>> = Signal::derive(move || 
-        filters.get().unwrap_or_default().into_iter().map(|(name, filter)| SelectOption::new(name, filter)).collect());
-    view! {
-        <Layout>
-            <Space align=SpaceAlign::Center>
-                <Text>"Active filter"</Text>
-                <Select value=active_filter options />
-            </Space>
-            <p>"filter: " {move || format!("{:#?}", active_filter.get())}</p>
-        </Layout>
-    }
-}

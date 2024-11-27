@@ -1,6 +1,6 @@
 use chrono::{NaiveTime, Weekday};
 use leptos::{spawn_local, *};
-use shared::{errors::Error, frontend::calendar_ui::Filter, CLOSING_TIME, OPENING_TIME, TIME_FORMAT};
+use shared::{frontend::calendar_ui::Filter, CLOSING_TIME, OPENING_TIME, TIME_FORMAT};
 use std::collections::{HashMap, HashSet};
 use thaw::*;
 use tracing::*;
@@ -54,16 +54,16 @@ pub fn FilterView(
 
     // Save the filter that results from the UI inputs
     let save_filter = move || {
-        let name = filter_name.get();
+        let name = filter_name.get_untracked();
         let name_clone = name.clone();
-        let days_of_the_week = weekdays.get().into_iter().collect();
+        let days_of_the_week = weekdays.get_untracked().into_iter().collect();
         let start_time_slots = time_slots
-            .get()
+            .get_untracked()
             .into_iter()
             .map(|(start, end)| {
                 (
-                    start.get().unwrap().to_string(),
-                    end.get().unwrap().to_string(),
+                    start.get_untracked().unwrap().to_string(),
+                    end.get_untracked().unwrap().to_string(),
                 )
             })
             .collect();
@@ -94,7 +94,7 @@ pub fn FilterView(
 
     // Remove a filter
     let remove_filter = move || {
-        let name = active_filter.get().unwrap().name;
+        let name = active_filter.get_untracked().unwrap().name;
 
         trace!("Removing filter: {:?}", name);
         // Save it in the stored filters

@@ -1,7 +1,7 @@
 //! Easy to use structures for our application
 use crate::{server_structs::DayPlanningResponse, DATE_FORMAT, frontend::utils::*, OPENING_TIME, CLOSING_TIME};
 use chrono::Datelike;
-use leptos::{SignalGet, create_resource};
+use leptos::{SignalGet, create_resource, Signal};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::cmp::{PartialEq, Eq};
@@ -108,46 +108,13 @@ impl Calendar {
     pub fn filtered(&self, filter: &Filter) -> BTreeMap<DateKey, DayPlanning> {
         trace!("Creating a filtered calender");
         // Filter out resources that have not loaded yet
-        let mut filtered_calendar: BTreeMap<DateKey, DayPlanning> = self.clone().days.into_iter().filter_map(|(day, day_planning)| day_planning.get().map(|day_planning| (day, day_planning))).collect();
-        filtered_calendar = 
-            filtered_calendar.into_iter().map(|(day, mut day_planning)| {
-                // Check if day match the filter
-                if !filter.days_of_the_week.contains(&day_planning.weekday) {
-                    day_planning.slots = BTreeMap::new();
-                    return (day, day_planning);
-                }
-
-                // Check time slots 
-                let day_planning_filtered: BTreeMap<StartTime, Slot> =
-                day_planning.slots.into_iter().filter_map(|(start_time, mut slot)| {
-                    // If start time is  in any of the filter time slots
-                    let slot_is_in_filter = filter.start_time_slots.iter().any(|(begin, end)| {
-                        &start_time >= begin && &start_time <= end
-                    });
-                    if !slot_is_in_filter {
-                        return None;
-                    }
-                    // Remove slots that only contains outdoor courts if filtered out
-                    if !filter.with_outdoor {
-                        slot.available_courts.retain(|court| court.is_indoor);
-                        // day_planning.slots.get_mut(start_time).unwrap().available_courts.retain(|court| court.is_indoor);
-                    } 
-
-                    if slot.available_courts.is_empty() {
-                        None
-                    } else {
-
-                        Some((start_time, slot))
-                    }
-                }).collect();
-
-                (day.clone(), DayPlanning::new(&day_planning.weekday, day_planning_filtered))
-            }).collect();
+        let filtered_calendar = self.days.iter().filter_map(|(day, day_planning)| day_planning.get().map(|day_planning| (day.clone(), DayPlanning::filtered(&day_planning, filter)))).collect();
         filtered_calendar 
     }
 
 
 }
+
 
 impl std::fmt::Debug for Calendar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
@@ -201,6 +168,36 @@ impl DayPlanning {
         let response = testcases::json_planning_for_1_day();
         let parsed = serde_json::from_str::<DayPlanningResponse>(&response);
         parsed.unwrap().into()
+    }
+
+    pub fn filtered(&self, filter: &Filter) -> Self {
+        // Check if day match the filter
+        if !filter.days_of_the_week.contains(&self.weekday) {
+            return DayPlanning::new(&self.weekday, BTreeMap::new());
+        }
+
+        // Check time slots 
+        let slots_filtered: BTreeMap<StartTime, Slot> =
+        self.slots.clone().into_iter().filter_map(|(start_time, mut slot)| {
+            // If start time is  in any of the filter time slots
+            let slot_is_in_filter = filter.start_time_slots.iter().any(|(begin, end)| {
+                &start_time >= begin && &start_time <= end
+            });
+            if !slot_is_in_filter {
+                return None;
+            }
+            // Remove slots that only contains outdoor courts if filtered out
+            if !filter.with_outdoor {
+                slot.available_courts.retain(|court| court.is_indoor);
+            } 
+
+            if slot.available_courts.is_empty() {
+                None
+            } else {
+                Some((start_time.clone(), slot.clone()))
+            }
+        }).collect();
+        DayPlanning::new(&self.weekday, slots_filtered)
     }
 }
 
@@ -258,10 +255,10 @@ mod test {
         let cal = default_calendar();
         let filtered = cal.filtered(&lunch_filter);
 
-        // println!("{:#?}", filtered);
+        println!("{:#?}", filtered);
         assert!(filtered.get("2024-11-13").unwrap().slots.is_empty());
         assert!(filtered.get("2024-11-14").unwrap().slots.is_empty());
-        assert!(filtered.get("2024-11-15").unwrap().slots.get("12:15").unwrap().available_courts.is_empty());
+        assert!(!filtered.get("2024-11-15").unwrap().slots.contains_key("12:15"));
         assert_eq!(filtered.get("2024-11-16").unwrap().slots.get("12:15").unwrap().available_courts.len(), 1);
         assert!(filtered.get("2024-11-19").unwrap().slots.is_empty());
     }
