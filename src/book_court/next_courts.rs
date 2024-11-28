@@ -7,6 +7,7 @@ use shared::DATE_FORMAT;
 use std::collections::BTreeMap;
 use thaw::*;
 use tracing::*;
+use web_sys::console::trace;
 
 const NB_ITEMS_AT_START: usize = 4;
 
@@ -17,7 +18,7 @@ pub fn NextCourtsView(
 ) -> impl IntoView {
     let nb_items = create_rw_signal(NB_ITEMS_AT_START);
     let next_courts_found = Signal::derive(move || {
-        trace!("NextCourtsView: next_courts_found signal");
+        trace!("NextCourtsView: compute list of [`next_courts_found`]");
         let mut next_date_to_poll = chrono::Local::now().date_naive();
         let mut next_courts: Vec<((String, DateKey), StartTime, Slot)> = vec![];
         let mut nb_courts_found = 0;
@@ -25,10 +26,17 @@ pub fn NextCourtsView(
         while nb_items.get() > nb_courts_found {
             let next_date_string = next_date_to_poll.format(DATE_FORMAT).to_string();
             let day_planning = filtered_calendar.get(&next_date_string);
-            // Check if calendar has started loading up to this date
+            trace!("day_planning: {:?}", day_planning);
             if let Some(day_planning_signal) = day_planning {
-                // Check if calendar has finished loading this date
+                trace!("toto: {:?}", day_planning_signal);
+                // Calendar has started loaded planning for this date
                 if let Some(time_slot) = day_planning_signal.get() {
+                    trace!(
+                        "Date has been loaded: {:?} --- Calendar state: {:?}",
+                        next_date_string,
+                        calendar.get().days.keys()
+                    );
+                    // Calendar has finished loading planning for this date
                     let slots = &time_slot.slots;
                     let weekday = &time_slot.weekday;
                     for (start, slot) in slots.iter() {
@@ -45,15 +53,27 @@ pub fn NextCourtsView(
                         .checked_add_days(chrono::Days::new(1))
                         .expect("Reach end of days");
                     continue;
+                } else {
+                    // The calendar is still loading data from server, just stop the computation
+                    // and it will be retriggered later when data has been loaded
+                    trace!(
+                        "Date still loading: {:?} --- Calendar state: {:?}",
+                        next_date_string,
+                        calendar.get().days.keys()
+                    );
+                    break;
                 }
+            } else {
+                // The calendar has not tried to load this date yet, request new date to be loaded
+                // and stop current computation
+                trace!(
+                    "No date: {:?} --- Calendar state: {:?}",
+                    next_date_string,
+                    calendar.get().days.keys()
+                );
+                update_calendar(calendar, vec![next_date_string]);
+                break;
             }
-            break;
-            // } else {
-            //     // Calendar have not fetched up to this date yet
-            //     break;
-            //     // update_calendar(calendar, vec![next_date_string]);
-            //     // continue;
-            // }
         }
         next_courts
     });

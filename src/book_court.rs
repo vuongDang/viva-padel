@@ -13,12 +13,12 @@ use thaw::mobile::*;
 use thaw::*;
 use tracing::*;
 
-pub(crate) type FilteredCalendar = Signal<BTreeMap<String, Signal<Option<DayPlanning>>>>;
+pub(crate) type FilteredCalendar = RwSignal<BTreeMap<String, Signal<Option<DayPlanning>>>>;
+const DEFAULT_TAB: &str = "next_courts";
 
 #[component]
 pub fn BookCourtView() -> impl IntoView {
-    // let selected_tab = create_rw_signal(String::from("next_courts"));
-    let selected_tab = create_rw_signal(String::from("calendar"));
+    let selected_tab = create_rw_signal(String::from(DEFAULT_TAB));
     let stored_filters = Resource::once(|| async move {Filter::get_stored_filters().await.expect("Failed to retrieved filters stored on disk")});
     let filters = create_rw_signal(None);
 
@@ -30,18 +30,16 @@ pub fn BookCourtView() -> impl IntoView {
     let calendar: RwSignal<Calendar> = create_rw_signal(Calendar::new());
 
     // The calendar obtained after applying the filter
-    let filtered_calendar:  FilteredCalendar = Signal::derive(move || {
-        trace!("Compute new [`filtered_calendar`]");
+    let filtered_calendar:  FilteredCalendar = create_rw_signal(
+        // trace!("Compute new [`filtered_calendar`]");
         calendar.get().days.clone().into_iter().map(|(date, dp_resource)| {
             (date, 
                 Signal::derive(move || { 
-
                     dp_resource.get().map(|dp| DayPlanning::filtered(&dp, &active_filter.get().unwrap()))
                 })
             )
         }).collect()
-
-    });
+    );
 
 
     view! {
@@ -54,8 +52,9 @@ pub fn BookCourtView() -> impl IntoView {
                 }
             }} <Tab key="filter" label="Filter">
                 <FilterView active_filter filters />
-            </Tab> <Tab key="calendar" label="Calendar">
-                <AvailaibilityCalendar calendar filtered_calendar />
+            // <Tab key="calendar" label="Calendar">
+            // <AvailaibilityCalendar calendar filtered_calendar />
+            // </Tab>
             </Tab> <Tab key="next_courts" label="Next Courts">
                 <NextCourtsView calendar filtered_calendar />
             </Tab>
@@ -90,7 +89,9 @@ pub(crate) fn update_calendar(calendar: RwSignal<Calendar>, dates: Vec<String>) 
                 move |_| {
                     let day_shown_clone = day_shown.clone();
                     async move { 
-                        DayPlanning::retrieve(&day_shown_clone).await.expect("Failed to retrieve new days to update calendar") 
+                        let res = DayPlanning::retrieve(&day_shown_clone).await.expect("Failed to retrieve new days to update calendar") ;
+                        trace!("Finished retrieving {:?}", day_shown_clone);
+                        res
                     }
                 }
             ));
