@@ -26,15 +26,18 @@ pub fn NextCourtsView(
         while nb_items.get() > nb_courts_found {
             let next_date_string = next_date_to_poll.format(DATE_FORMAT).to_string();
             let day_planning = filtered_calendar.get(&next_date_string);
-            trace!("day_planning: {:?}", day_planning);
+            trace!(
+                "date: {}, day_planning: {:?}",
+                next_date_string,
+                day_planning
+            );
             if let Some(day_planning_signal) = day_planning {
-                trace!("toto: {:?}", day_planning_signal);
                 // Calendar has started loaded planning for this date
                 if let Some(time_slot) = day_planning_signal.get() {
                     trace!(
-                        "Date has been loaded: {:?} --- Calendar state: {:?}",
+                        "Date has been loaded: {:?} --- Calendar keys: {:?}",
                         next_date_string,
-                        calendar.get().days.keys()
+                        calendar.get()
                     );
                     // Calendar has finished loading planning for this date
                     let slots = &time_slot.slots;
@@ -57,9 +60,9 @@ pub fn NextCourtsView(
                     // The calendar is still loading data from server, just stop the computation
                     // and it will be retriggered later when data has been loaded
                     trace!(
-                        "Date still loading: {:?} --- Calendar state: {:?}",
+                        "Date still loading: {:?} --- Calendar keys: {:?}",
                         next_date_string,
-                        calendar.get().days.keys()
+                        calendar.get()
                     );
                     break;
                 }
@@ -67,9 +70,9 @@ pub fn NextCourtsView(
                 // The calendar has not tried to load this date yet, request new date to be loaded
                 // and stop current computation
                 trace!(
-                    "No date: {:?} --- Calendar state: {:?}",
+                    "No date {:?} in the calendar --- Calendar state: {:?}",
                     next_date_string,
-                    calendar.get().days.keys()
+                    calendar.get()
                 );
                 update_calendar(calendar, vec![next_date_string]);
                 break;

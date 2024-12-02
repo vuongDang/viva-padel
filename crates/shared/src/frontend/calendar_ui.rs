@@ -1,7 +1,7 @@
 //! Easy to use structures for our application
 use crate::{server_structs::DayPlanningResponse, DATE_FORMAT, frontend::utils::*, OPENING_TIME, CLOSING_TIME};
 use chrono::Datelike;
-use leptos::{SignalGet, create_resource, Signal};
+use leptos::{SignalGet, create_resource, Signal, RwSignal};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::cmp::{PartialEq, Eq};
@@ -52,6 +52,80 @@ pub struct PadelCourt {
     pub is_indoor: bool,
 }
 
+/// A calendar on which a filter was applied
+#[derive(Debug, Clone)]
+pub struct FilteredCalendar {
+     calendar: BTreeMap<String, Signal<Option<DayPlanning>>>,
+}
+
+/// The different state that can be observed when loading a day from the calendar
+#[derive(Debug, PartialEq, Eq)]
+pub enum CalendarDayState {
+    /// The date was not loaded on the calendar
+    NotLoaded(),
+    /// The date is being loaded
+    Loading(),
+    /// The date has been loaded but was not matching the filter criteria
+    NoAvailaibility(),
+    /// The date has been loaded and match the filter criteria
+    Loaded(DayPlanning)
+}
+
+impl FilteredCalendar {
+    /// Produce a trimmed calendar based on the provided filter
+    pub fn new(calendar: Calendar, filter: RwSignal<Filter>) -> Self {
+        trace!("Creating a filtered calender");
+        let filtered_calendar = 
+        calendar.days.into_iter().map(|(date, dp_resource)| {
+            (date, 
+                Signal::derive(move || { 
+                    dp_resource.get().map(|dp| DayPlanning::filtered(&dp, &filter.get()))
+                })
+            )
+        }).collect();
+
+        FilteredCalendar { calendar: filtered_calendar }
+    }
+
+    /// Retrieve a DayPlanning with information on its current state:
+    /// Not loaded, loading, no availaibility, loaded
+    pub fn get(&self, date: &str) -> CalendarDayState {
+        match self.calendar.get(date) {
+            None => CalendarDayState::NotLoaded(),
+            Some(day_planning_signal) => {
+                match day_planning_signal.get() {
+                    None => CalendarDayState::Loading(),
+                    Some(day_planning) => {
+                        match day_planning.slots.is_empty() {
+                            true => CalendarDayState::NoAvailaibility(),
+                            false => CalendarDayState::Loaded(day_planning)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Same structure but in a list form
+    pub fn into_list(self) -> Vec<(DateKey, String, StartTime, Slot)> {
+        let mut res = vec![];
+        for date in self.calendar.keys() {
+            match self.get(date) {
+                CalendarDayState::Loaded(planning) => {
+                    for (start, slot) in planning.slots.into_iter() {
+                        if slot.available_courts.is_empty() {
+                            continue;
+                        }
+                        res.push((date.clone(), planning.weekday.clone(), start, slot))
+                    }
+                }
+                _ => {continue;}
+            }
+        }
+        res
+    }
+}
+
 use BookingDuration::*;
 // Conversion to number of seconds
 impl From<&BookingDuration> for usize {
@@ -81,11 +155,9 @@ impl Calendar {
         let dates = flatten_days(get_next_days_from(chrono::Local::now()));
         std::iter::zip(plannings, dates).map(|(planning, date) | {
             let day_planning: DayPlanning = serde_json::from_str::<DayPlanningResponse>(&planning).unwrap().into();
-            if day_planning.slots.is_empty() {
-                if date == "2024-11-20" {
-                    println!("{:?} ---- {:?}", date, day_planning);
-                    println!("{:?}", planning);
-                }
+            if day_planning.slots.is_empty() && date == "2024-11-20" {
+                println!("{:?} ---- {:?}", date, day_planning);
+                println!("{:?}", planning);
             }
             (date, day_planning)
         }).collect()
@@ -103,15 +175,6 @@ impl Calendar {
                     }}));
         }
     }
-
-    /// Produce a trimmed calendar based on the provided filter
-    pub fn filtered(&self, filter: &Filter) -> BTreeMap<DateKey, DayPlanning> {
-        trace!("Creating a filtered calender");
-        // Filter out resources that have not loaded yet
-        let filtered_calendar = self.days.iter().filter_map(|(day, day_planning)| day_planning.get().map(|day_planning| (day.clone(), DayPlanning::filtered(&day_planning, filter)))).collect();
-        filtered_calendar 
-    }
-
 
 }
 
@@ -248,19 +311,29 @@ impl From<DayPlanningResponse> for DayPlanning {
 #[cfg(test)]
 mod test {
     use super::*;
+    use leptos::create_rw_signal;
 
     #[test]
     fn test_filtered_calendar() {
         let lunch_filter = Filter { name: "toto".into(), days_of_the_week: vec!["Mon".into(), "Tue".into(), "Wed".into(), "Thu".into(), "Fri".into()], start_time_slots: vec![("11:30".into(), "14:00".into())], with_outdoor: false};
         let cal = default_calendar();
-        let filtered = cal.filtered(&lunch_filter);
+        let filtered = FilteredCalendar::new(cal, create_rw_signal(lunch_filter));
 
-        println!("{:#?}", filtered);
-        assert!(filtered.get("2024-11-13").unwrap().slots.is_empty());
-        assert!(filtered.get("2024-11-14").unwrap().slots.is_empty());
-        assert!(!filtered.get("2024-11-15").unwrap().slots.contains_key("12:15"));
-        assert_eq!(filtered.get("2024-11-16").unwrap().slots.get("12:15").unwrap().available_courts.len(), 1);
-        assert!(filtered.get("2024-11-19").unwrap().slots.is_empty());
+        assert_eq!(filtered.get("2024-11-12"), CalendarDayState::NotLoaded());
+        assert_eq!(filtered.get("2024-11-13"), CalendarDayState::NoAvailaibility());
+        assert_eq!(filtered.get("2024-11-14"), CalendarDayState::NoAvailaibility());
+        assert_eq!(filtered.get("2024-11-15"), CalendarDayState::NoAvailaibility());
+        let day_planning = filtered.get("2024-11-16");
+        match day_planning {
+            CalendarDayState::Loaded(dp) => {
+                assert_eq!(dp.slots.get("12:15").unwrap().available_courts.len(), 1);
+
+            }
+            _ => panic!("Wrong result")
+        }
+        assert_eq!(filtered.get("2024-11-19"), CalendarDayState::NoAvailaibility());
+        assert_eq!(filtered.get("2024-11-20"), CalendarDayState::NotLoaded());
+
     }
 
     #[test]
@@ -268,8 +341,17 @@ mod test {
         let lunch_filter = Filter { name: "toto".into(), days_of_the_week: vec!["Mon".into(), "Tue".into(), "Wed".into(), "Thu".into(), "Fri".into()], start_time_slots: vec![("11:30".into(), "14:00".into())], with_outdoor: false};
         let mut cal = Calendar::new();
         cal.days.insert("2024-11-19".into(), new_day_planning_resource(DayPlanning::testcase()));
-        let filtered = cal.filtered(&lunch_filter);
-        println!("filtered: {:?}", filtered);
+        let filtered = FilteredCalendar::new(cal, create_rw_signal(lunch_filter));
+        assert_eq!(filtered.get("2024-11-12"), CalendarDayState::NotLoaded());
+        let day_planning = filtered.get("2024-11-19");
+        match day_planning {
+            CalendarDayState::Loaded(dp) => {
+                assert!(!dp.slots.get("13:00").unwrap().available_courts.is_empty());
+                assert!(!dp.slots.get("14:00").unwrap().available_courts.is_empty());
+            }
+            _ => panic!("Wrong result")
+        }
+
     }
 
 
