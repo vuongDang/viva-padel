@@ -13,9 +13,9 @@ const CONTENT_STYLE: &str = "background-color: #0078ff88; padding: 20px;";
 #[tracing::instrument]
 #[component]
 pub fn FilterView(
-    active_filter: RwSignal<Option<Filter>>,
     filters: RwSignal<Option<HashMap<String, Filter>>>,
 ) -> impl IntoView {
+    let active_filter = use_context::<RwSignal<Option<Filter>>>().expect("Filter not found in context");
     // Are we reading or editing a filter
     let read_mode = create_rw_signal(true);
 

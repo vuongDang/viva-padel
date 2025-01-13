@@ -1,4 +1,4 @@
-use crate::{DATE_FORMAT, NB_DAYS_SHOWN, DAYS_PER_WEEK, frontend::calendar_ui::DayPlanning};
+use crate::{DATE_FORMAT, NB_DAYS_PER_BATCH, DAYS_PER_WEEK, frontend::calendar_ui::DayPlanning};
 use chrono::{Datelike, DateTime, Local, Weekday, Days};
 use leptos::create_resource;
 
@@ -22,7 +22,7 @@ pub fn get_next_days_from(first_day: DateTime<Local>) -> Vec<Vec<DateTime<Local>
         .expect("Calendar day underflow");
 
     // We get all the `NB_DAYS_SHOWN` starting previous Monday
-    let days_shown: Vec<DateTime<Local>> = (0..NB_DAYS_SHOWN)
+    let days_shown: Vec<DateTime<Local>> = (0..NB_DAYS_PER_BATCH)
         .map(|i| {
             first_day_shown
                 .checked_add_days(Days::new(i as u64))

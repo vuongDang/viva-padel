@@ -12,4 +12,4 @@ pub const CLOSING_TIME: &str = "22:00";
 
 pub const DAYS_PER_WEEK: u8 = 7;
 pub const NB_WEEKS_SHOWN: u8 = 4;
-pub const NB_DAYS_SHOWN: u8 = DAYS_PER_WEEK * NB_WEEKS_SHOWN;
+pub const NB_DAYS_PER_BATCH: u8 = DAYS_PER_WEEK * NB_WEEKS_SHOWN;
