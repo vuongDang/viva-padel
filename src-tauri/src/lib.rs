@@ -15,6 +15,7 @@ use tauri_plugin_store::StoreExt;
 
 pub(crate) const FILTERS_STORE: &str = "filters.json";
 pub(crate) const FILTERS_KEY: &str = "filters";
+pub(crate) const DEFAULT_FILTER_KEY: &str = "default_filter";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -32,8 +33,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             save_filters,
+            set_default_filter,
             get_date_planning,
-            get_stored_filters
+            get_stored_filters,
+            get_default_filter,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

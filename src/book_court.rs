@@ -30,6 +30,11 @@ pub fn BookCourtView() -> impl IntoView {
 
     // The active filter, the option type is solely to fit the selector item from Thaw UI
     let active_filter = create_rw_signal(Some(Filter::default()));
+    // Load the default active filter from disk
+    spawn_local(async move {
+        let default_filter = Filter::get_default_filter().await.ok();
+        active_filter.set(default_filter);
+    });
 
     // Court availabilities for all the days loaded
     let calendar: RwSignal<Calendar> = create_rw_signal(Calendar::new());
@@ -104,7 +109,6 @@ pub(crate) fn FilterSelector(filters: RwSignal<Option<HashMap<String, Filter>>>)
                 <Text>"Active filter"</Text>
                 <Select value=active_filter options />
             </Space>
-            <p>"filter: " {move || format!("{:#?}", active_filter.get())}</p>
         </Layout>
     }
 }

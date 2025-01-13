@@ -12,10 +12,9 @@ const CONTENT_STYLE: &str = "background-color: #0078ff88; padding: 20px;";
 
 #[tracing::instrument]
 #[component]
-pub fn FilterView(
-    filters: RwSignal<Option<HashMap<String, Filter>>>,
-) -> impl IntoView {
-    let active_filter = use_context::<RwSignal<Option<Filter>>>().expect("Filter not found in context");
+pub fn FilterView(filters: RwSignal<Option<HashMap<String, Filter>>>) -> impl IntoView {
+    let active_filter =
+        use_context::<RwSignal<Option<Filter>>>().expect("Filter not found in context");
     // Are we reading or editing a filter
     let read_mode = create_rw_signal(true);
 
@@ -84,7 +83,9 @@ pub fn FilterView(
         });
         spawn_local(async move {
             if let Some(filters) = filters.get() {
-                Filter::save_filters(filters).await.expect("Failed to save filters to the disk store")
+                Filter::save_filters(filters)
+                    .await
+                    .expect("Failed to save filters to the disk store")
             }
         });
 
@@ -106,7 +107,9 @@ pub fn FilterView(
 
         spawn_local(async move {
             if let Some(filters) = filters.get() {
-                Filter::save_filters(filters).await.expect("Failed to save filters to the disk store")
+                Filter::save_filters(filters)
+                    .await
+                    .expect("Failed to save filters to the disk store")
             }
         });
 
@@ -117,49 +120,59 @@ pub fn FilterView(
 
     view! {
         <Layout>
-            <Layout style=HEADER_STYLE>
-                <Space align=SpaceAlign::Center>
-                    <Text>"Filter Builder"</Text>
-                    <Button
-                        disabled=Signal::derive(move || !read_mode.get())
-                        on_click=move |_| { read_mode.set(false) }
-                    >
-                        "Create/Modify"
-                    </Button>
-                    <Button
-                        disabled=read_mode
-                        on_click=move |_| {
-                            read_mode.set(true);
-                            save_filter();
-                        }
-                    >
-                        "Save"
-                    </Button>
-                    <Button disabled=read_mode on_click=move |_| { read_mode.set(true) }>
-                        "Cancel"
-                    </Button>
-                    <Button
-                        disabled=Signal::derive(move || {
-                            filters.get().is_none() || filters.get().unwrap().len() <= 1
-                                || !read_mode.get()
-                        })
-                        on_click=move |_| {
-                            read_mode.set(true);
-                            remove_filter();
-                        }
-                    >
-                        "Remove"
-                    </Button>
-                </Space>
-            </Layout>
-            <Show
-                when=move || read_mode.get()
-                fallback=move || {
-                    view! { <FilterEditView filter_name weekdays time_slots with_outdoor /> }
-                }
-            >
-                <FilterReadView active_filter />
-            </Show>
+        <Layout style=HEADER_STYLE>
+        <Space align=SpaceAlign::Center>
+        <Text>"Filter Builder"</Text>
+        <Button
+        disabled=Signal::derive(move || !read_mode.get())
+        on_click=move |_| { read_mode.set(false) }
+        >
+        "Create/Modify"
+        </Button>
+        <Button
+        disabled=read_mode
+        on_click=move |_| {
+        read_mode.set(true);
+        save_filter();
+    }
+        >
+        "Save"
+        </Button>
+        <Button disabled=read_mode on_click=move |_| { read_mode.set(true) }>
+        "Cancel"
+        </Button>
+        <Button
+        disabled=Signal::derive(move || {
+        filters.get().is_none() || filters.get().unwrap().len() <= 1
+            || !read_mode.get()
+        })
+        on_click=move |_| {
+        read_mode.set(true);
+        remove_filter();
+    }
+        >
+        "Remove"
+        </Button>
+        </Space>
+        <Space>
+        <Button on_click=move |_| {
+        spawn_local(async move {
+            Filter::set_default_filter(active_filter.get_untracked().unwrap()).await.expect("Failed to save default filter")
+            });
+        }>
+
+        "Use as default"
+        </Button>
+        </Space>
+        </Layout>
+        <Show
+        when=move || read_mode.get()
+            fallback=move || {
+            view! { <FilterEditView filter_name weekdays time_slots with_outdoor /> }
+    }
+        >
+        <FilterReadView active_filter />
+        </Show>
         </Layout>
     }
 }
@@ -168,21 +181,21 @@ pub fn FilterView(
 fn FilterReadView(active_filter: RwSignal<Option<Filter>>) -> impl IntoView {
     view! {
         <Layout style=CONTENT_STYLE>
-            {move || {
-                let filter = active_filter.get().unwrap();
-                view! {
-                    <Space vertical=true>
-                        <Text>"Filter name: " {format!("{:?}", filter.name)}</Text>
-                        <Text>"Weekdays: " {format!("{:?}", filter.days_of_the_week)}</Text>
-                        <Text>
-                            "Game starts between: " {format!("{:?}", filter.start_time_slots)}
-                        </Text>
-                        <Text>
-                            "Include outdoor courts: "{format!("{:?}", filter.with_outdoor)}
-                        </Text>
-                    </Space>
-                }
-            }}
+        {move || {
+            let filter = active_filter.get().unwrap();
+            view! {
+                <Space vertical=true>
+                <Text>"Filter name: " {format!("{:?}", filter.name)}</Text>
+                <Text>"Weekdays: " {format!("{:?}", filter.days_of_the_week)}</Text>
+                <Text>
+                "Game starts between: " {format!("{:?}", filter.start_time_slots)}
+                </Text>
+                <Text>
+                "Include outdoor courts: "{format!("{:?}", filter.with_outdoor)}
+                </Text>
+                </Space>
+            }
+        }}
         </Layout>
     }
 }
@@ -196,55 +209,55 @@ fn FilterEditView(
 ) -> impl IntoView {
     view! {
         <Layout style=CONTENT_STYLE>
-            <Space align=SpaceAlign::Center>
-                <Text>"Filter Name"</Text>
-                <Input value=filter_name />
+        <Space align=SpaceAlign::Center>
+        <Text>"Filter Name"</Text>
+            <Input value=filter_name />
             </Space>
-        </Layout>
-        <Layout style=CONTENT_STYLE>
+            </Layout>
+            <Layout style=CONTENT_STYLE>
             <Space align=SpaceAlign::Center>
-                <CheckboxGroup value=weekdays>
-                    {get_weekdays_ordered()
-                        .iter()
-                        .map(|weekday| {
-                            view! { <CheckboxItem label=weekday.clone() key=weekday /> }
-                        })
-                        .collect_view()}
-                </CheckboxGroup>
-                <Button on_click=move |_| { weekdays.set(get_weekdays()) }>"Check all"</Button>
-                <Button on_click=move |_| { weekdays.set(HashSet::new()) }>"Uncheck all"</Button>
+            <CheckboxGroup value=weekdays>
+            {get_weekdays_ordered()
+                .iter()
+                .map(|weekday| {
+                    view! { <CheckboxItem label=weekday.clone() key=weekday /> }
+                })
+                .collect_view()}
+            </CheckboxGroup>
+            <Button on_click=move |_| { weekdays.set(get_weekdays()) }>"Check all"</Button>
+            <Button on_click=move |_| { weekdays.set(HashSet::new()) }>"Uncheck all"</Button>
             </Space>
-        </Layout>
-        <Layout style=CONTENT_STYLE>
+            </Layout>
+            <Layout style=CONTENT_STYLE>
             <Space align=SpaceAlign::Center>
-                <Button on_click=move |_| {
-                    time_slots.update(|slots| slots.push(default_time_slot()))
-                }>"Add time range"</Button>
-                <Button on_click=move |_| {
-                    time_slots
-                        .update(|slots| {
-                            slots.pop();
-                        })
-                }>"Remove time range"</Button>
+            <Button on_click=move |_| {
+                time_slots.update(|slots| slots.push(default_time_slot()))
+            }>"Add time range"</Button>
+            <Button on_click=move |_| {
+                time_slots
+                    .update(|slots| {
+                        slots.pop();
+                    })
+            }>"Remove time range"</Button>
             </Space>
             <Space align=SpaceAlign::Center>
-                {move || {
-                    time_slots
-                        .get()
-                        .into_iter()
-                        .map(|slot| {
-                            view! {
-                                <Space align=SpaceAlign::Center>
-                                    "Start" <TimePicker value=slot.0 /> "End"
-                                    <TimePicker value=slot.1 />
-                                </Space>
-                            }
-                        })
-                        .collect_view()
-                }}
+            {move || {
+                time_slots
+                    .get()
+                    .into_iter()
+                    .map(|slot| {
+                        view! {
+                            <Space align=SpaceAlign::Center>
+                            "Start" <TimePicker value=slot.0 /> "End"
+                            <TimePicker value=slot.1 />
+                            </Space>
+                        }
+                    })
+                    .collect_view()
+            }}
             </Space>
-        </Layout>
-        <Layout style=CONTENT_STYLE>
+            </Layout>
+            <Layout style=CONTENT_STYLE>
             <Checkbox value=with_outdoor>"With outdoor courts"</Checkbox>
         </Layout>
     }
