@@ -27,6 +27,13 @@ impl Default for DayPlanningResponse {
     }
 }
 
+impl DayPlanningResponse {
+    pub fn error_case() -> Self {
+        let response = testcases::json_planning_for_1_day_by_filename("day (10).json");
+        serde_json::from_str::<DayPlanningResponse>(&response).unwrap()
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PadelCourtResponse {

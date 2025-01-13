@@ -1,5 +1,5 @@
 //! Easy to use structures for our application
-use shared::{server_structs::DayPlanningResponse, DATE_FORMAT, utils::*, NB_DAYS_PER_BATCH, filter::Filter};
+use shared::{server_structs::DayPlanningResponse, DATE_FORMAT, NB_DAYS_PER_BATCH, filter::Filter};
 use chrono::Datelike;
 use leptos::{SignalGet, create_resource, Signal, SignalGetUntracked};
 use serde::{Deserialize, Serialize};
@@ -187,19 +187,19 @@ impl Calendar {
     }
 
 
-    #[allow(dead_code)]
-    pub fn testcase_no_ressource() -> BTreeMap<String, DayPlanning> {
-        let plannings = testcases::json_planning_for_29_days();
-        let dates = flatten_days(get_next_days_from(chrono::Local::now()));
-        std::iter::zip(plannings, dates).map(|(planning, date) | {
-            let day_planning: DayPlanning = serde_json::from_str::<DayPlanningResponse>(&planning).unwrap().into();
-            if day_planning.slots.is_empty() && date == "2024-11-20" {
-                println!("{:?} ---- {:?}", date, day_planning);
-                println!("{:?}", planning);
-            }
-            (date, day_planning)
-        }).collect()
-    }
+    // #[allow(dead_code)]
+    // pub fn testcase_no_ressource() -> BTreeMap<String, DayPlanning> {
+    //     let plannings = testcases::json_planning_for_29_days();
+    //     let dates = flatten_days(get_next_days_from(chrono::Local::now()));
+    //     std::iter::zip(plannings, dates).map(|(planning, date) | {
+    //         let day_planning: DayPlanning = serde_json::from_str::<DayPlanningResponse>(&planning).unwrap().into();
+    //         if day_planning.slots.is_empty() && date == "2024-11-20" {
+    //             println!("{:?} ---- {:?}", date, day_planning);
+    //             println!("{:?}", planning);
+    //         }
+    //         (date, day_planning)
+    //     }).collect()
+    // }
 
 
     #[allow(dead_code)]
@@ -245,9 +245,7 @@ impl DayPlanning {
 
     #[allow(dead_code)]
     pub fn testcase() -> DayPlanning {
-        let response = testcases::json_planning_for_1_day();
-        let parsed = serde_json::from_str::<DayPlanningResponse>(&response);
-        parsed.unwrap().into()
+        DayPlanningResponse::default().into()
     }
 
     pub fn filtered(&self, filter: &Filter) -> Self {
@@ -444,4 +442,34 @@ mod test {
         })
     }
 
+
+    #[test]
+    fn parse_and_convert_json_planning_response() {
+        let parsed = DayPlanningResponse::default();
+        let day_planning: DayPlanning = parsed.into();
+        let slot_at_1600 = day_planning.slots.get("16:00");
+        let padel4 = PadelCourt {
+            name: "Padel 4".into(),
+            is_indoor: true,
+        };
+
+        let padel5 = PadelCourt {
+            name: "Padel 5".into(),
+            is_indoor: true,
+        };
+
+        assert!(slot_at_1600.is_some());
+        assert!(slot_at_1600.unwrap().available_courts.contains(&padel4));
+        assert!(!slot_at_1600.unwrap().available_courts.contains(&padel5));
+    }
+
+    // This case is special as the server gave us Padel courts with field `bookable: false`
+    // This does not seem the case with the official app but currently we will take the information as
+    // it is and assume that there are no available courts
+    #[test]
+    fn parse_and_convert_json_planning_response_on_failed_case() {
+        let response = DayPlanningResponse::error_case();
+        let day_planning: DayPlanning = response.into();
+        assert!(day_planning.slots.is_empty())
+    }
 }
