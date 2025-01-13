@@ -1,6 +1,6 @@
 {
   "productName": "viva-padel",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "identifier": "com.viva-padel.dev",
   "build": {
     "devUrl": "http://localhost:1420",
@@ -30,6 +30,9 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      // "crates/shared/testcases/data/json_server_responses/plannings/*": "resources/json_plannings/""
+    }
   }
 }
