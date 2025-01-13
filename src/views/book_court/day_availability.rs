@@ -1,12 +1,8 @@
-// use crate::invoke;
+use crate::logic::calendar_ui::{DayPlanning, Slot};
 use chrono::{DateTime, Local};
 use leptos::*;
 use leptos_router::*;
-// use serde::{Deserialize, Serialize};
-// use serde_wasm_bindgen::{from_value, to_value};
-use shared::frontend::calendar_ui::{DayPlanning, Slot};
 use thaw::*;
-// use shared::server_structs::DayPlanningResponse;
 
 #[derive(Params, PartialEq)]
 struct UIDay {

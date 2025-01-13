@@ -1,9 +1,9 @@
 //! Easy to use structures for our application
-use crate::{server_structs::DayPlanningResponse, DATE_FORMAT, frontend::utils::*, OPENING_TIME, CLOSING_TIME, NB_DAYS_PER_BATCH};
+use shared::{server_structs::DayPlanningResponse, DATE_FORMAT, utils::*, NB_DAYS_PER_BATCH, filter::Filter};
 use chrono::Datelike;
 use leptos::{SignalGet, create_resource, Signal, SignalGetUntracked};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::cmp::{PartialEq, Eq};
 use tracing::*;
 
@@ -11,16 +11,6 @@ use tracing::*;
 pub type StartTime = String;
 /// Keys for a calendar which are days of the year 
 pub type DateKey = String;
-
-/// A filter used to specify which padel courts we want to book
-#[allow(clippy::derived_hash_with_manual_eq)]
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]
-pub struct Filter {
-    pub name: String,
-    pub days_of_the_week: Vec<String>,
-    pub start_time_slots: Vec<(String, String)>,
-    pub with_outdoor: bool
-}
 
 /// The planning of courts availaibility for a day
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
@@ -114,6 +104,7 @@ impl FilteredCalendar {
     /// Retrieve a `DayPlanning` with information on its current state as `CalendarDayState`:
     /// Not loaded, loading, no availaibility, loaded
     /// Untracked version
+    #[allow(dead_code)]
     pub fn get_untracked(&self, date: &str) -> CalendarDayState {
         match self.calendar.get(date) {
             None => CalendarDayState::NotLoaded(),
@@ -195,6 +186,8 @@ impl Calendar {
         }
     }
 
+
+    #[allow(dead_code)]
     pub fn testcase_no_ressource() -> BTreeMap<String, DayPlanning> {
         let plannings = testcases::json_planning_for_29_days();
         let dates = flatten_days(get_next_days_from(chrono::Local::now()));
@@ -209,6 +202,7 @@ impl Calendar {
     }
 
 
+    #[allow(dead_code)]
     /// We only retrieve days that were not loaded before
     pub async fn retrieve(&mut self, days: Vec<String>)  {
         for day  in days.into_iter() {
@@ -234,31 +228,6 @@ impl std::fmt::Debug for Calendar {
     }
 }
 
-impl Default for Filter {
-    /// Default `Filter` that allows everything
-    fn default() -> Self {
-        Filter{
-            name: "default".to_string(),
-            days_of_the_week: vec!["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].into_iter().map(|day| day.into()).collect(),
-            start_time_slots: vec!((OPENING_TIME.into(), CLOSING_TIME.into())),
-            with_outdoor: true
-        }
-    }
-}
-
-impl PartialEq for Filter {
-    fn eq(&self, other: &Self) -> bool  {
-        self.name == other.name
-    }
-}
-
-impl Filter {
-    pub fn default_filters() -> HashMap<String, Filter> {
-        let mut filters = HashMap::new();
-        filters.insert("default".to_string(), Filter::default());
-        filters
-    }
-}
 
 impl DayPlanning {
 
@@ -269,10 +238,12 @@ impl DayPlanning {
         }
     }
 
+    #[allow(dead_code)]
     pub fn has_slots(&self) -> bool {
         self.slots.iter().any(|(_, slot)| !slot.available_courts.is_empty())
     }
 
+    #[allow(dead_code)]
     pub fn testcase() -> DayPlanning {
         let response = testcases::json_planning_for_1_day();
         let parsed = serde_json::from_str::<DayPlanningResponse>(&response);
@@ -465,6 +436,12 @@ mod test {
         slots.insert("10:15".into(), indoor_and_outdoor_slot());
         slots
     }
+
+    fn new_day_planning_resource(day: DayPlanning) -> leptos::Resource<(), DayPlanning> {
+        create_resource(move || (), move |_| { 
+            let day_clone = day.clone();
+            async move { day_clone }
+        })
+    }
+
 }
-
-

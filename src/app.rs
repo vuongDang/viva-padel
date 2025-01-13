@@ -1,4 +1,4 @@
-use crate::book_court::BookCourtView;
+use crate::views::book_court::BookCourtView;
 // use shared::app_structs::{BookingDuration, DayPlanning};
 // use serde_wasm_bindgen::{from_value, to_value};
 // use leptos::leptos_dom::ev::SubmitEvent;

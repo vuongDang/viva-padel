@@ -3,14 +3,18 @@ mod day_availability;
 mod filter_builder;
 mod next_courts;
 
-use crate::book_court::availaibility_calendar::AvailaibilityCalendar;
-use crate::book_court::filter_builder::FilterView;
-use crate::book_court::next_courts::NextCourtsView;
-use leptos::*;
-use shared::frontend::calendar_ui::{
-    Calendar, DateKey, DayPlanning, Filter, FilteredCalendar, Slot, StartTime,
+use crate::logic::{
+    calendar_ui::{Calendar, FilteredCalendar},
+    tauri_invokes,
 };
+use crate::views::book_court::{
+    availaibility_calendar::AvailaibilityCalendar, filter_builder::FilterView,
+    next_courts::NextCourtsView,
+};
+use leptos::*;
+use shared::filter::Filter;
 use std::collections::HashMap;
+#[allow(unused_imports)]
 use thaw::mobile::*;
 use thaw::*;
 use tracing::*;
@@ -22,7 +26,7 @@ const DEFAULT_TAB: &str = "calendar";
 pub fn BookCourtView() -> impl IntoView {
     let selected_tab = create_rw_signal(String::from(DEFAULT_TAB));
     let stored_filters = Resource::once(|| async move {
-        Filter::get_stored_filters()
+        tauri_invokes::get_stored_filters()
             .await
             .expect("Failed to retrieved filters stored on disk")
     });
@@ -32,7 +36,7 @@ pub fn BookCourtView() -> impl IntoView {
     let active_filter = create_rw_signal(Some(Filter::default()));
     // Load the default active filter from disk
     spawn_local(async move {
-        let default_filter = Filter::get_default_filter().await.ok();
+        let default_filter = tauri_invokes::get_default_filter().await.ok();
         active_filter.set(default_filter);
     });
 

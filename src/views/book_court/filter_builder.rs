@@ -1,6 +1,7 @@
+use crate::logic::tauri_invokes;
 use chrono::{NaiveTime, Weekday};
 use leptos::{spawn_local, *};
-use shared::{frontend::calendar_ui::Filter, CLOSING_TIME, OPENING_TIME, TIME_FORMAT};
+use shared::{filter::Filter, CLOSING_TIME, OPENING_TIME, TIME_FORMAT};
 use std::collections::{HashMap, HashSet};
 use thaw::*;
 use tracing::*;
@@ -83,7 +84,7 @@ pub fn FilterView(filters: RwSignal<Option<HashMap<String, Filter>>>) -> impl In
         });
         spawn_local(async move {
             if let Some(filters) = filters.get() {
-                Filter::save_filters(filters)
+                tauri_invokes::save_filters(filters)
                     .await
                     .expect("Failed to save filters to the disk store")
             }
@@ -107,7 +108,7 @@ pub fn FilterView(filters: RwSignal<Option<HashMap<String, Filter>>>) -> impl In
 
         spawn_local(async move {
             if let Some(filters) = filters.get() {
-                Filter::save_filters(filters)
+                tauri_invokes::save_filters(filters)
                     .await
                     .expect("Failed to save filters to the disk store")
             }
@@ -157,7 +158,7 @@ pub fn FilterView(filters: RwSignal<Option<HashMap<String, Filter>>>) -> impl In
         <Space>
         <Button on_click=move |_| {
         spawn_local(async move {
-            Filter::set_default_filter(active_filter.get_untracked().unwrap()).await.expect("Failed to save default filter")
+            tauri_invokes::set_default_filter(active_filter.get_untracked().unwrap()).await.expect("Failed to save default filter")
             });
         }>
 

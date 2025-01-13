@@ -1,9 +1,9 @@
 mod app;
-mod book_court;
+mod logic;
+mod views;
 
 use app::*;
 use leptos::*;
-
 
 fn main() {
     console_error_panic_hook::set_once();

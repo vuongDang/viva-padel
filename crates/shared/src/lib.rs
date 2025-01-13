@@ -1,7 +1,7 @@
 pub mod errors;
-pub mod frontend;
+pub mod filter;
 pub mod server_structs;
-mod tauri_invokes;
+pub mod utils;
 
 /// Day format that the server uses
 pub const DATE_FORMAT: &str = "%Y-%m-%d";

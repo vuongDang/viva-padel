@@ -1,13 +1,9 @@
-use crate::book_court::{
-    day_availability::DayAvailaibilityList, update_calendar, Filter, FilteredCalendar,
-};
+use crate::logic::calendar_ui::{Calendar, CalendarDayState, DayPlanning, FilteredCalendar};
+use crate::views::book_court::{day_availability::DayAvailaibilityList, update_calendar};
 use chrono::{DateTime, Days, Local, Weekday};
 use leptos::*;
-use shared::frontend::{
-    calendar_ui::{Calendar, CalendarDayState, DateKey, DayPlanning, Slot, StartTime},
-    utils::get_next_days_from,
-};
-use shared::{DATE_FORMAT, DAYS_PER_WEEK, NB_DAYS_PER_BATCH};
+use shared::utils::get_next_days_from;
+use shared::{filter::Filter, DATE_FORMAT, DAYS_PER_WEEK, NB_DAYS_PER_BATCH};
 use thaw::*;
 use tracing::*;
 

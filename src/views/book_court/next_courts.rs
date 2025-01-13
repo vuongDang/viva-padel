@@ -1,8 +1,7 @@
-use crate::book_court::{
-    day_availability::DayAvailaibilityItem, update_calendar, FilteredCalendar,
-};
+use crate::logic::calendar_ui::{Calendar, CalendarDayState, FilteredCalendar};
+use crate::views::book_court::{day_availability::DayAvailaibilityItem, update_calendar};
 use leptos::*;
-use shared::frontend::calendar_ui::{Calendar, CalendarDayState, DateKey, Filter, Slot, StartTime};
+use shared::filter::Filter;
 use thaw::*;
 use tracing::*;
 

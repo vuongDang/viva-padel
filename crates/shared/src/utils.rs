@@ -1,15 +1,5 @@
-use crate::{DATE_FORMAT, NB_DAYS_PER_BATCH, DAYS_PER_WEEK, frontend::calendar_ui::DayPlanning};
-use chrono::{Datelike, DateTime, Local, Weekday, Days};
-use leptos::create_resource;
-
-
-pub fn new_day_planning_resource(day: DayPlanning) -> leptos::Resource<(), DayPlanning> {
-    create_resource(move || (), move |_| { 
-        let day_clone = day.clone();
-        async move { day_clone }
-    })
-}
-
+use crate::{DATE_FORMAT, DAYS_PER_WEEK, NB_DAYS_PER_BATCH};
+use chrono::{DateTime, Datelike, Days, Local, Weekday};
 
 /// Get `NB_DAYS_SHOWN` next days starting with the previous Monday since [`first_day`]
 pub fn get_next_days_from(first_day: DateTime<Local>) -> Vec<Vec<DateTime<Local>>> {
@@ -43,4 +33,3 @@ pub fn flatten_days(days: Vec<Vec<DateTime<Local>>>) -> Vec<String> {
         .map(|day_shown| day_shown.format(DATE_FORMAT).to_string())
         .collect()
 }
-

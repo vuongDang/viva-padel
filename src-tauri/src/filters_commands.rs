@@ -1,7 +1,7 @@
 use crate::{DEFAULT_FILTER_KEY, FILTERS_KEY, FILTERS_STORE};
 use serde_json::json;
 use shared::errors::Error;
-use shared::frontend::calendar_ui::Filter;
+use shared::filter::Filter;
 use std::collections::HashMap;
 use tauri_plugin_store::StoreExt;
 

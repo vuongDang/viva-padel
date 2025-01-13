@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DayPlanningResponse {
     #[serde(rename = "@context")]
@@ -21,7 +21,13 @@ pub struct DayPlanningResponse {
     // search: Search,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl Default for DayPlanningResponse {
+    fn default() -> Self {
+        serde_json::from_str(&testcases::json_planning_for_1_day()).unwrap()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PadelCourtResponse {
     #[serde(rename = "@type")]
@@ -37,7 +43,7 @@ pub struct PadelCourtResponse {
     timetables: TimeTable,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CourtActivity {
     id: String,
@@ -45,7 +51,7 @@ pub struct CourtActivity {
     slots: Vec<Slot>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Slot {
     start_at: String,
@@ -55,7 +61,7 @@ pub struct Slot {
     user_client_step_booking_duration: usize,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Price {
     id: String,
@@ -66,14 +72,14 @@ pub struct Price {
     bookable: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TimeTable {
     start_at: String,
     end_at: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct View {
     #[serde(rename = "@id")]
@@ -82,7 +88,7 @@ pub struct View {
     at_type: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Search {
     #[serde(rename = "@type")]
@@ -95,7 +101,7 @@ pub struct Search {
     mapping: Vec<Mapping>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Mapping {
     #[serde(rename = "@type")]
@@ -106,13 +112,13 @@ pub struct Mapping {
 }
 
 impl DayPlanningResponse {
-    pub(crate) fn courts(&self) -> &Vec<PadelCourtResponse> {
+    pub fn courts(&self) -> &Vec<PadelCourtResponse> {
         &self.courts
     }
 
     // Get date from url request that looks like this:
     // "/clubs/playgrounds/plannings/2024-10-04?club.id=a126b4d4..."
-    pub(crate) fn date(&self) -> &str {
+    pub fn date(&self) -> &str {
         const BASE_REQ: &str = "/clubs/playgrounds/plannings/";
         const DATE_LEN: usize = 10;
         let url = &self.view.id;
@@ -122,35 +128,35 @@ impl DayPlanningResponse {
 }
 
 impl PadelCourtResponse {
-    pub(crate) fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
 
-    pub(crate) fn is_indoor(&self) -> bool {
+    pub fn is_indoor(&self) -> bool {
         self.indoor
     }
 
-    pub(crate) fn slots(&self) -> &Vec<Slot> {
+    pub fn slots(&self) -> &Vec<Slot> {
         &self.activities[0].slots
     }
 }
 
 impl Slot {
-    pub(crate) fn start_at(&self) -> &str {
+    pub fn start_at(&self) -> &str {
         &self.start_at
     }
 
-    pub(crate) fn prices(&self) -> &Vec<Price> {
+    pub fn prices(&self) -> &Vec<Price> {
         &self.prices
     }
 }
 
 impl Price {
-    pub(crate) fn duration(&self) -> usize {
+    pub fn duration(&self) -> usize {
         self.duration
     }
 
-    pub(crate) fn bookable(&self) -> bool {
+    pub fn bookable(&self) -> bool {
         self.bookable
     }
 }
