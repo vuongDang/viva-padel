@@ -32,7 +32,7 @@
       "icons/icon.ico"
     ],
     "resources": {
-      // "crates/shared/testcases/data/json_server_responses/plannings/*": "resources/json_plannings/""
+      "../crates/testcases/data/json_server_responses/plannings/*": "resources/plannings/"
     }
   }
 }
