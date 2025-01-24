@@ -1,3 +1,5 @@
+pub mod day_plannings;
+
 use std::path::PathBuf;
 
 pub fn json_planning_for_1_day() -> String {

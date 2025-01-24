@@ -34,16 +34,29 @@ pub fn init_local_calendar(handle: tauri::AppHandle) -> BTreeMap<String, DayPlan
         .collect()
 }
 
+/// Tauri path resolver for embedded files does not work in Android
+#[cfg(not(target_os = "android"))]
 pub fn json_planning_for_29_days_tauri(app: tauri::AppHandle) -> Vec<String> {
     let mut calendar = vec![];
     for i in 0..=28 {
         let path = format!("resources/plannings/day({i}).json");
+        println!("{:?}", app.path().resolve(&path, BaseDirectory::Resource));
         let resource_path = app
             .path()
             .resolve(&path, BaseDirectory::Resource)
             .expect("Did not find planning resource");
         let content = std::fs::read_to_string(resource_path).expect("Error while getting data");
         calendar.push(content)
+    }
+    calendar
+}
+
+/// Tauri path resolver for embedded files does not work in Android
+#[cfg(target_os = "android")]
+pub fn json_planning_for_29_days_tauri(app: tauri::AppHandle) -> Vec<String> {
+    let mut calendar = vec![];
+    for i in 0..=28 {
+        calendar.push(testcases::day_plannings::DAY_0.to_string())
     }
     calendar
 }

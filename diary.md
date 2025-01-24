@@ -37,3 +37,8 @@
   - can be solved with the `with_span_event` in the builder
 - spans lifecycle: new, (enter, exit)\*, close
   - a span can be entered and exited multiple times when the execution thread change context (specific to async)
+
+## Android
+
+Embedded files do not work with Android:
+https://github.com/tauri-apps/tauri/issues/10338
