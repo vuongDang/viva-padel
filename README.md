@@ -1,6 +1,6 @@
 # Viva Padel
 
-This app is used to book padel fields in LeGarden of Rennes.
+Personnal app used to book padel courts in LeGarden of Rennes.
 
 ## Main functionalities
 
@@ -10,7 +10,6 @@ This app is used to book padel fields in LeGarden of Rennes.
 ## Better UI
 
 1. Login page if not logged
-2.
 
 ## Upgrades
 
