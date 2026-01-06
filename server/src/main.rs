@@ -43,7 +43,7 @@ async fn main() {
     });
 
     let app = create_router(state);
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     tracing::info!("Listening on {}", addr);
 
@@ -54,7 +54,7 @@ async fn poll_calendar(state: &mut AppState) {
     const MAX_RETRIES: u32 = 3;
     const RETRY_DELAY_SECS: u64 = 5;
     loop {
-        tracing::info!("Polling calendar from");
+        tracing::info!("Polling calendar");
         for attempt in 1..=MAX_RETRIES {
             match shared::pull_data_from_garden::get_calendar().await {
                 Ok(availabilities) => {
@@ -62,6 +62,8 @@ async fn poll_calendar(state: &mut AppState) {
                     let mut old_cal = state.calendar.write().expect("Failed to get mut guard");
                     old_cal.availabilities = availabilities;
                     old_cal.timestamp = timestamp;
+                    tracing::info!("Calendar fetched!");
+                    break;
                 }
                 Err(e) => {
                     if attempt < MAX_RETRIES {
@@ -77,6 +79,14 @@ async fn poll_calendar(state: &mut AppState) {
                 }
             }
         }
-        sleep(Duration::from_mins(30)).await;
+        let sleep_duration = if cfg!(feature = "local_dev") {
+            // Use a short interval for local development
+            Duration::from_secs(10)
+        } else {
+            // Use a longer interval for production
+            Duration::from_secs(30 * 60)
+        };
+        tracing::info!("Waiting for {:?} before next poll.", sleep_duration);
+        sleep(sleep_duration).await;
     }
 }

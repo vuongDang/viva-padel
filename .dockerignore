@@ -1,0 +1,18 @@
+# Ignore git history
+.git
+.gitignore
+
+# Ignore build artifacts
+target/
+dist/
+
+# Ignore editor and OS-specific files
+.vscode/
+.DS_Store
+
+# Ignore other crates and frontend assets not needed for the server
+tauri_app/
+Trunk.toml
+README.md
+diary.md
+frontend/

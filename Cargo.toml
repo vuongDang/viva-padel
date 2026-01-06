@@ -1,5 +1,7 @@
 [workspace]
-members = [ "crates/shared", "crates/testcases", "server", "tauri_app/src-tauri", "tauri_app"]
+resolver = "3"
+# members = [ "crates/shared", "crates/testcases", "server", "tauri_app/src-tauri", "tauri_app"]
+members = [ "crates/shared", "crates/testcases", "server"]
 
 [workspace.dependencies]
 tauri = { version = "2.0.0", features = ["config-json5"] }
@@ -7,7 +9,7 @@ leptos = { version = "0.6", features = ["csr", "tracing"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 chrono = "0.4"
-shared = { path = "./crates/shared/" }
+shared = { path = "./crates/shared/", default-features = false }
 testcases = { path = "./crates/testcases/" }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde_json = "1"

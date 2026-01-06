@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  padel-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: viva-padel-server:latest
+    container_name: viva-padel-server
+    ports:
+      - "3000:3000"
+    environment:
+      - PADEL_MOCK_DATA=/usr/local/share/viva-padel-server/data
+    # env_file:
+    #   - .env
+    restart: always

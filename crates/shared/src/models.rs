@@ -21,19 +21,6 @@ pub struct DayPlanningResponse {
     // search: Search,
 }
 
-impl Default for DayPlanningResponse {
-    fn default() -> Self {
-        serde_json::from_str(&testcases::legarden::json_planning_for_1_day()).unwrap()
-    }
-}
-
-impl DayPlanningResponse {
-    pub fn error_case() -> Self {
-        let response = testcases::legarden::json_planning_for_1_day_by_filename("day (10).json");
-        serde_json::from_str::<DayPlanningResponse>(&response).unwrap()
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PadelCourtResponse {
