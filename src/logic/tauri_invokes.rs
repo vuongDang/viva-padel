@@ -1,7 +1,7 @@
 use crate::logic::calendar_ui::DayPlanning;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::{from_value, to_value};
-use shared::{errors::Error, filter::Filter, server_structs::DayPlanningResponse};
+use shared::{errors::Error, filter::Filter, models::DayPlanningResponse};
 use std::collections::HashMap;
 use tracing::*;
 use wasm_bindgen::prelude::*;

@@ -1,3 +1,5 @@
+use std::{fs::File, io::Write, path::PathBuf};
+
 use crate::{DATE_FORMAT, DAYS_PER_WEEK, NB_DAYS_PER_BATCH};
 use chrono::{DateTime, Datelike, Days, Local, Weekday};
 
@@ -32,4 +34,15 @@ pub fn flatten_days(days: Vec<Vec<DateTime<Local>>>) -> Vec<String> {
         .flatten()
         .map(|day_shown| day_shown.format(DATE_FORMAT).to_string())
         .collect()
+}
+
+// Used to print test data
+pub fn print_to_test_file(path: PathBuf, content: String) -> std::io::Result<()> {
+    let dir: String = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let mut full_path = PathBuf::from(dir);
+    full_path.push(path);
+    let mut f = File::create(full_path.clone())?;
+    f.write_all(content.as_bytes()).unwrap();
+    println!("Wrote to {:?}", full_path);
+    Ok(())
 }

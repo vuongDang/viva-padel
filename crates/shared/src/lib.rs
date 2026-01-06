@@ -1,6 +1,7 @@
 pub mod errors;
 pub mod filter;
-pub mod server_structs;
+pub mod models;
+pub mod pull_data_from_garden;
 pub mod utils;
 
 /// Day format that the server uses

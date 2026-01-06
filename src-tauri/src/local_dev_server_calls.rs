@@ -3,7 +3,7 @@
 
 use async_std::task;
 use shared::errors::Error;
-use shared::{server_structs::DayPlanningResponse, utils::*};
+use shared::{models::DayPlanningResponse, utils::*};
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
 use std::time::Duration;

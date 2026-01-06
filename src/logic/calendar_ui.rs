@@ -1,15 +1,15 @@
 //! Easy to use structures for our application
-use shared::{server_structs::DayPlanningResponse, DATE_FORMAT, NB_DAYS_PER_BATCH, filter::Filter};
 use chrono::Datelike;
-use leptos::{SignalGet, create_resource, Signal, SignalGetUntracked};
+use leptos::{create_resource, Signal, SignalGet, SignalGetUntracked};
 use serde::{Deserialize, Serialize};
+use shared::{filter::Filter, models::DayPlanningResponse, DATE_FORMAT, NB_DAYS_PER_BATCH};
+use std::cmp::{Eq, PartialEq};
 use std::collections::BTreeMap;
-use std::cmp::{PartialEq, Eq};
 use tracing::*;
 
 /// Time at which starts a booking slot
 pub type StartTime = String;
-/// Keys for a calendar which are days of the year 
+/// Keys for a calendar which are days of the year
 pub type DateKey = String;
 
 /// The planning of courts availaibility for a day
@@ -20,7 +20,7 @@ pub struct DayPlanning {
 }
 
 /// The available courts for a slot
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq, )]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Eq)]
 pub struct Slot {
     pub available_courts: Vec<PadelCourt>,
     pub duration: BookingDuration,
@@ -45,7 +45,7 @@ pub struct PadelCourt {
 /// A calendar on which a filter was applied
 #[derive(Debug, Clone, Default)]
 pub struct FilteredCalendar {
-     pub calendar: BTreeMap<String, Signal<Option<DayPlanning>>>,
+    pub calendar: BTreeMap<String, Signal<Option<DayPlanning>>>,
 }
 
 /// The different state that can be observed when loading a day from the calendar
@@ -58,7 +58,7 @@ pub enum CalendarDayState {
     /// The date has been loaded but was not matching the filter criteria
     NoAvailaibility(),
     /// The date has been loaded and match the filter criteria
-    Loaded(DayPlanning)
+    Loaded(DayPlanning),
 }
 
 impl FilteredCalendar {
@@ -68,18 +68,20 @@ impl FilteredCalendar {
         trace!("Creating a filtered calender, this should only be triggered when:\n\t- Calendar is loading new dates\n\t- Active filter is changed ");
 
         let filter = filter.unwrap_or_default();
-        let filtered_calendar = 
+        let filtered_calendar =
         calendar.days.into_iter().map(|(date, dp_resource)| {
             let filter_clone = filter.clone();
-            (date, 
-                Signal::derive(move || { 
+            (date,
+                Signal::derive(move || {
                     trace!("Derive a new filtered day planning, this should only be triggered when the DayPlanning resource has finished loading");
                     dp_resource.get().map(|dp| DayPlanning::filtered(&dp, &filter_clone))
                 })
             )
         }).collect();
 
-        FilteredCalendar { calendar: filtered_calendar }
+        FilteredCalendar {
+            calendar: filtered_calendar,
+        }
     }
 
     /// Retrieve a `DayPlanning` with information on its current state:
@@ -87,17 +89,13 @@ impl FilteredCalendar {
     pub fn get(&self, date: &str) -> CalendarDayState {
         match self.calendar.get(date) {
             None => CalendarDayState::NotLoaded(),
-            Some( day_planning_signal) => {
-                match day_planning_signal.get() {
-                    None => CalendarDayState::Loading(),
-                    Some(day_planning) => {
-                        match day_planning.slots.is_empty() {
-                            true => CalendarDayState::NoAvailaibility(),
-                            false => CalendarDayState::Loaded(day_planning)
-                        }
-                    }
-                }
-            }
+            Some(day_planning_signal) => match day_planning_signal.get() {
+                None => CalendarDayState::Loading(),
+                Some(day_planning) => match day_planning.slots.is_empty() {
+                    true => CalendarDayState::NoAvailaibility(),
+                    false => CalendarDayState::Loaded(day_planning),
+                },
+            },
         }
     }
 
@@ -108,17 +106,13 @@ impl FilteredCalendar {
     pub fn get_untracked(&self, date: &str) -> CalendarDayState {
         match self.calendar.get(date) {
             None => CalendarDayState::NotLoaded(),
-            Some( day_planning_signal) => {
-                match day_planning_signal.get_untracked() {
-                    None => CalendarDayState::Loading(),
-                    Some(day_planning) => {
-                        match day_planning.slots.is_empty() {
-                            true => CalendarDayState::NoAvailaibility(),
-                            false => CalendarDayState::Loaded(day_planning)
-                        }
-                    }
-                }
-            }
+            Some(day_planning_signal) => match day_planning_signal.get_untracked() {
+                None => CalendarDayState::Loading(),
+                Some(day_planning) => match day_planning.slots.is_empty() {
+                    true => CalendarDayState::NoAvailaibility(),
+                    false => CalendarDayState::Loaded(day_planning),
+                },
+            },
         }
     }
 }
@@ -146,9 +140,8 @@ impl Calendar {
             days: BTreeMap::new(),
         }
     }
-    
 
-    /// Load the plannings for the next batch of days 
+    /// Load the plannings for the next batch of days
     pub fn load_batch(&mut self) {
         debug!("Retrieving new batch");
         let first_day_to_load = if self.days.is_empty() {
@@ -158,34 +151,37 @@ impl Calendar {
             // If initialized first day to load is last day + 1
             let last_date_loaded = self.days.keys().last().unwrap();
             chrono::NaiveDate::parse_from_str(last_date_loaded, DATE_FORMAT)
-                .expect("Failed to parse date").checked_add_days(chrono::Days::new(1 )).expect("Failed to find last_date_loaded")
+                .expect("Failed to parse date")
+                .checked_add_days(chrono::Days::new(1))
+                .expect("Failed to find last_date_loaded")
         };
 
         // The batch of dates we want to load
-        let dates: Vec<String> =  (0..NB_DAYS_PER_BATCH)
-                    .map(|i| {
-                        let next_day = first_day_to_load 
-                            .checked_add_days(chrono::Days::new(i as u64))
-                            .unwrap();
-                        next_day.format(DATE_FORMAT).to_string()
-                    })
-                    .collect();
+        let dates: Vec<String> = (0..NB_DAYS_PER_BATCH)
+            .map(|i| {
+                let next_day = first_day_to_load
+                    .checked_add_days(chrono::Days::new(i as u64))
+                    .unwrap();
+                next_day.format(DATE_FORMAT).to_string()
+            })
+            .collect();
 
         for date in dates.into_iter() {
             self.days.entry(date.clone()).or_insert(create_resource(
                 || (),
                 move |_| {
                     let date_clone = date.clone();
-                    async move { 
-                        let res = DayPlanning::retrieve(&date_clone).await.expect("Failed to retrieve new days to update calendar") ;
+                    async move {
+                        let res = DayPlanning::retrieve(&date_clone)
+                            .await
+                            .expect("Failed to retrieve new days to update calendar");
                         trace!("Finished retrieving {:?}", date_clone);
                         res
                     }
-                }
+                },
             ));
         }
     }
-
 
     // #[allow(dead_code)]
     // pub fn testcase_no_ressource() -> BTreeMap<String, DayPlanning> {
@@ -201,46 +197,51 @@ impl Calendar {
     //     }).collect()
     // }
 
-
     #[allow(dead_code)]
     /// We only retrieve days that were not loaded before
-    pub async fn retrieve(&mut self, days: Vec<String>)  {
-        for day  in days.into_iter() {
-            self.days.entry(day.clone()).or_insert(create_resource(|| (),
+    pub async fn retrieve(&mut self, days: Vec<String>) {
+        for day in days.into_iter() {
+            self.days.entry(day.clone()).or_insert(create_resource(
+                || (),
                 move |_| {
                     let day_clone = day.clone();
-                    async move { 
-                        DayPlanning::retrieve(&day_clone).await.expect("Failed to retrieve plannings")
-                    }}));
+                    async move {
+                        DayPlanning::retrieve(&day_clone)
+                            .await
+                            .expect("Failed to retrieve plannings")
+                    }
+                },
+            ));
         }
     }
-
 }
-
 
 impl std::fmt::Debug for Calendar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        let days_debug: Vec<(String, Option<DayPlanning>)> = self.days.iter().map(|(day, resource)| (day.to_string(), resource.get())).collect();
+        let days_debug: Vec<(String, Option<DayPlanning>)> = self
+            .days
+            .iter()
+            .map(|(day, resource)| (day.to_string(), resource.get()))
+            .collect();
         f.debug_struct("Calendar")
             .field("days", &days_debug)
             .finish()
-
     }
 }
 
-
 impl DayPlanning {
-
     pub fn new(day: &str, slots: BTreeMap<String, Slot>) -> Self {
         DayPlanning {
             weekday: day.into(),
-            slots
+            slots,
         }
     }
 
     #[allow(dead_code)]
     pub fn has_slots(&self) -> bool {
-        self.slots.iter().any(|(_, slot)| !slot.available_courts.is_empty())
+        self.slots
+            .iter()
+            .any(|(_, slot)| !slot.available_courts.is_empty())
     }
 
     #[allow(dead_code)]
@@ -254,27 +255,32 @@ impl DayPlanning {
             return DayPlanning::new(&self.weekday, BTreeMap::new());
         }
 
-        // Check time slots 
-        let slots_filtered: BTreeMap<StartTime, Slot> =
-        self.slots.clone().into_iter().filter_map(|(start_time, mut slot)| {
-            // If start time is  in any of the filter time slots
-            let slot_is_in_filter = filter.start_time_slots.iter().any(|(begin, end)| {
-                &start_time >= begin && &start_time <= end
-            });
-            if !slot_is_in_filter {
-                return None;
-            }
-            // Remove slots that only contains outdoor courts if filtered out
-            if !filter.with_outdoor {
-                slot.available_courts.retain(|court| court.is_indoor);
-            } 
+        // Check time slots
+        let slots_filtered: BTreeMap<StartTime, Slot> = self
+            .slots
+            .clone()
+            .into_iter()
+            .filter_map(|(start_time, mut slot)| {
+                // If start time is  in any of the filter time slots
+                let slot_is_in_filter = filter
+                    .start_time_slots
+                    .iter()
+                    .any(|(begin, end)| &start_time >= begin && &start_time <= end);
+                if !slot_is_in_filter {
+                    return None;
+                }
+                // Remove slots that only contains outdoor courts if filtered out
+                if !filter.with_outdoor {
+                    slot.available_courts.retain(|court| court.is_indoor);
+                }
 
-            if slot.available_courts.is_empty() {
-                None
-            } else {
-                Some((start_time.clone(), slot.clone()))
-            }
-        }).collect();
+                if slot.available_courts.is_empty() {
+                    None
+                } else {
+                    Some((start_time.clone(), slot.clone()))
+                }
+            })
+            .collect();
         DayPlanning::new(&self.weekday, slots_filtered)
     }
 }
@@ -314,7 +320,9 @@ impl From<DayPlanningResponse> for DayPlanning {
             }
         }
 
-        let weekday = chrono::NaiveDate::parse_from_str(server_res.date(), DATE_FORMAT ).expect("Failed to parse date from server day planning").weekday();
+        let weekday = chrono::NaiveDate::parse_from_str(server_res.date(), DATE_FORMAT)
+            .expect("Failed to parse date from server day planning")
+            .weekday();
 
         DayPlanning {
             weekday: weekday.to_string(),
@@ -329,32 +337,67 @@ mod test {
 
     #[test]
     fn test_filtered_calendar() {
-        let lunch_filter = Filter { name: "toto".into(), days_of_the_week: vec!["Mon".into(), "Tue".into(), "Wed".into(), "Thu".into(), "Fri".into()], start_time_slots: vec![("11:30".into(), "14:00".into())], with_outdoor: false};
+        let lunch_filter = Filter {
+            name: "toto".into(),
+            days_of_the_week: vec![
+                "Mon".into(),
+                "Tue".into(),
+                "Wed".into(),
+                "Thu".into(),
+                "Fri".into(),
+            ],
+            start_time_slots: vec![("11:30".into(), "14:00".into())],
+            with_outdoor: false,
+        };
         let cal = default_calendar();
         let filtered = FilteredCalendar::new(cal, Some(lunch_filter));
 
         assert_eq!(filtered.get("2024-11-12"), CalendarDayState::NotLoaded());
-        assert_eq!(filtered.get("2024-11-13"), CalendarDayState::NoAvailaibility());
-        assert_eq!(filtered.get("2024-11-14"), CalendarDayState::NoAvailaibility());
-        assert_eq!(filtered.get("2024-11-15"), CalendarDayState::NoAvailaibility());
+        assert_eq!(
+            filtered.get("2024-11-13"),
+            CalendarDayState::NoAvailaibility()
+        );
+        assert_eq!(
+            filtered.get("2024-11-14"),
+            CalendarDayState::NoAvailaibility()
+        );
+        assert_eq!(
+            filtered.get("2024-11-15"),
+            CalendarDayState::NoAvailaibility()
+        );
         let day_planning = filtered.get("2024-11-16");
         match day_planning {
             CalendarDayState::Loaded(dp) => {
                 assert_eq!(dp.slots.get("12:15").unwrap().available_courts.len(), 1);
-
             }
-            _ => panic!("Wrong result")
+            _ => panic!("Wrong result"),
         }
-        assert_eq!(filtered.get("2024-11-19"), CalendarDayState::NoAvailaibility());
+        assert_eq!(
+            filtered.get("2024-11-19"),
+            CalendarDayState::NoAvailaibility()
+        );
         assert_eq!(filtered.get("2024-11-20"), CalendarDayState::NotLoaded());
-
     }
 
     #[test]
     fn test_filtered_calendar_testcase() {
-        let lunch_filter = Filter { name: "toto".into(), days_of_the_week: vec!["Mon".into(), "Tue".into(), "Wed".into(), "Thu".into(), "Fri".into()], start_time_slots: vec![("11:30".into(), "14:00".into())], with_outdoor: false};
+        let lunch_filter = Filter {
+            name: "toto".into(),
+            days_of_the_week: vec![
+                "Mon".into(),
+                "Tue".into(),
+                "Wed".into(),
+                "Thu".into(),
+                "Fri".into(),
+            ],
+            start_time_slots: vec![("11:30".into(), "14:00".into())],
+            with_outdoor: false,
+        };
         let mut cal = Calendar::new();
-        cal.days.insert("2024-11-19".into(), new_day_planning_resource(DayPlanning::testcase()));
+        cal.days.insert(
+            "2024-11-19".into(),
+            new_day_planning_resource(DayPlanning::testcase()),
+        );
         let filtered = FilteredCalendar::new(cal, Some(lunch_filter));
         assert_eq!(filtered.get("2024-11-12"), CalendarDayState::NotLoaded());
         let day_planning = filtered.get("2024-11-19");
@@ -363,22 +406,19 @@ mod test {
                 assert!(!dp.slots.get("13:00").unwrap().available_courts.is_empty());
                 assert!(!dp.slots.get("14:00").unwrap().available_courts.is_empty());
             }
-            _ => panic!("Wrong result")
+            _ => panic!("Wrong result"),
         }
-
     }
-
 
     fn default_calendar() -> Calendar {
         let mut cal = Calendar::new();
 
-
         let no_courts_day = new_day_planning_resource(DayPlanning::new("Mon", BTreeMap::new()));
-        let only_morning_day = new_day_planning_resource(  DayPlanning::new("Tue", morning_slots()));
-        let lunch_day_only_outdoor = new_day_planning_resource( DayPlanning::new("Wed", lunch_slot_only_outdoor()));
+        let only_morning_day = new_day_planning_resource(DayPlanning::new("Tue", morning_slots()));
+        let lunch_day_only_outdoor =
+            new_day_planning_resource(DayPlanning::new("Wed", lunch_slot_only_outdoor()));
         let lunch_day = new_day_planning_resource(DayPlanning::new("Thu", lunch_slots()));
-        let weekend_day = new_day_planning_resource( DayPlanning::new("Sun", lunch_slots()));
-
+        let weekend_day = new_day_planning_resource(DayPlanning::new("Sun", lunch_slots()));
 
         cal.days.insert("2024-11-13".into(), no_courts_day);
         cal.days.insert("2024-11-14".into(), only_morning_day);
@@ -391,57 +431,59 @@ mod test {
     fn court9() -> PadelCourt {
         PadelCourt {
             name: "9".into(),
-            is_indoor: false
+            is_indoor: false,
         }
     }
 
     fn court1() -> PadelCourt {
         PadelCourt {
             name: "1".into(),
-            is_indoor:true 
+            is_indoor: true,
         }
     }
 
     fn only_outdoor_slot() -> Slot {
-        Slot { 
-            available_courts: vec![court9()], 
-            duration: BookingDuration::NinetyMin()
+        Slot {
+            available_courts: vec![court9()],
+            duration: BookingDuration::NinetyMin(),
         }
     }
 
-    fn indoor_and_outdoor_slot() -> Slot { 
-        Slot { 
-            available_courts: vec![court1(), court9()], 
-            duration: BookingDuration::NinetyMin()
+    fn indoor_and_outdoor_slot() -> Slot {
+        Slot {
+            available_courts: vec![court1(), court9()],
+            duration: BookingDuration::NinetyMin(),
         }
     }
 
-    fn lunch_slot_only_outdoor() -> BTreeMap<String, Slot> { 
+    fn lunch_slot_only_outdoor() -> BTreeMap<String, Slot> {
         let mut slots = BTreeMap::new();
         slots.insert("12:15".into(), only_outdoor_slot());
         slots
     }
 
-    fn lunch_slots() -> BTreeMap<String, Slot> { 
+    fn lunch_slots() -> BTreeMap<String, Slot> {
         let mut slots = BTreeMap::new();
         slots.insert("12:15".into(), only_outdoor_slot());
         slots.insert("12:15".into(), indoor_and_outdoor_slot());
         slots
     }
 
-    fn morning_slots() -> BTreeMap<String, Slot> { 
+    fn morning_slots() -> BTreeMap<String, Slot> {
         let mut slots = BTreeMap::new();
         slots.insert("10:15".into(), indoor_and_outdoor_slot());
         slots
     }
 
     fn new_day_planning_resource(day: DayPlanning) -> leptos::Resource<(), DayPlanning> {
-        create_resource(move || (), move |_| { 
-            let day_clone = day.clone();
-            async move { day_clone }
-        })
+        create_resource(
+            move || (),
+            move |_| {
+                let day_clone = day.clone();
+                async move { day_clone }
+            },
+        )
     }
-
 
     #[test]
     fn parse_and_convert_json_planning_response() {
