@@ -6,8 +6,8 @@ WORKDIR /usr/src/padel
 
 COPY . .
 
-# RUN cargo build --release --no-default-features --bin viva-padel-server
-RUN cargo build --release --bin viva-padel-server
+ARG CARGO_BUILD_FLAGS=""
+RUN cargo build --release ${CARGO_BUILD_FLAGS} --bin viva-padel-server
 
 # ---- Run the executable in a container ----
 FROM debian:bookworm-slim

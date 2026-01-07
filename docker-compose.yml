@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - CARGO_BUILD_FLAGS=${CARGO_BUILD_FLAGS:-}
     image: viva-padel-server:latest
     container_name: viva-padel-server
     ports:
