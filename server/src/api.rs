@@ -4,9 +4,12 @@ use axum::{Router, routing::get};
 use tower_http::trace::TraceLayer;
 
 pub fn create_router(state: AppState) -> Router {
-    Router::new()
+    let api_router = Router::new()
         .route("/calendar", get(get_calendar))
-        .route("/health", get(health_check))
+        .route("/health", get(health_check));
+
+    Router::new()
+        .nest("/viva-padel", api_router)
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }
