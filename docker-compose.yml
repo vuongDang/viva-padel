@@ -12,10 +12,3 @@ services:
     environment:
       - PADEL_MOCK_DATA=/usr/local/share/viva-padel-server/data
     restart: always
-
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    restart: always
-    command: tunnel run
-    environment:
-      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
