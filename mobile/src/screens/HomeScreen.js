@@ -212,6 +212,9 @@ export default function HomeScreen() {
           onDateClick={onDateClick}
           filterFn={checkAvailability}
         />
+        <Text style={styles.footerNote}>
+          Les disponibilités sont rafraîchies toutes les 30 min. Seuls les 3 prochains mois sont pris en compte.
+        </Text>
       </ScrollView>
 
       {/* Modals */}
@@ -261,6 +264,14 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: theme.spacing.m,
-    paddingBottom: 40,
+    paddingBottom: 60,
+  },
+  footerNote: {
+    marginTop: theme.spacing.xl,
+    textAlign: "center",
+    fontSize: 12,
+    color: theme.colors.textSecondary || "#666",
+    fontStyle: "italic",
+    opacity: 0.8,
   },
 });
