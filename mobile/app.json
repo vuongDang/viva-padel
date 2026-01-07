@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "viva-padel",
+    "slug": "viva-padel",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/viva-padel-icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/viva-padel-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.alobabo.vivapadel"
+    },
+    "android": {
+      "package": "com.alobabo.vivapadel",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/viva-padel-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9255b1b2-4ce5-4cbc-890e-94555dc62f99"
+      }
+    },
+    "owner": "alobabo",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9255b1b2-4ce5-4cbc-890e-94555dc62f99"
+    }
+  }
+}

@@ -2,3 +2,5 @@ tauri_app/dist/
 /target/
 /Cargo.lock
 **/gen/
+.env
+.env*.local
