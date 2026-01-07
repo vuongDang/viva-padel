@@ -28,8 +28,8 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<serde_wasm_bindgen::Error> for Error {
-    fn from(err: serde_wasm_bindgen::Error) -> Error {
-        Error::WasmConversionError(err.to_string())
-    }
-}
+// impl From<serde_wasm_bindgen::Error> for Error {
+//     fn from(err: serde_wasm_bindgen::Error) -> Error {
+//         Error::WasmConversionError(err.to_string())
+//     }
+// }

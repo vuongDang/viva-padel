@@ -1,3 +1,4 @@
+#![warn(unused_crate_dependencies)]
 mod api;
 use api::*;
 
@@ -26,8 +27,6 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() {
-    dotenvy::dotenv().ok();
-
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
         .init();
