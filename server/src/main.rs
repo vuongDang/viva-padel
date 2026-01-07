@@ -2,6 +2,7 @@
 mod api;
 use api::*;
 
+use chrono::Timelike;
 use serde::Serialize;
 use shared::models::DayPlanningResponse;
 use std::{
@@ -52,31 +53,38 @@ async fn main() {
 async fn poll_calendar(state: &mut AppState) {
     const MAX_RETRIES: u32 = 3;
     const RETRY_DELAY_SECS: u64 = 5;
+    const START_POLLING_TIME: u32 = 7;
+    const END_POLLING_TIME: u32 = 23;
     loop {
-        tracing::info!("Polling calendar");
-        for attempt in 1..=MAX_RETRIES {
-            match shared::pull_data_from_garden::get_calendar().await {
-                Ok(availabilities) => {
-                    let timestamp = chrono::Local::now().timestamp();
-                    let mut old_cal = state.calendar.write().expect("Failed to get mut guard");
-                    old_cal.availabilities = availabilities;
-                    old_cal.timestamp = timestamp;
-                    tracing::info!("Calendar fetched!");
-                    break;
-                }
-                Err(e) => {
-                    if attempt < MAX_RETRIES {
-                        tracing::warn!("Failed to get calendar: {e}. Retrying...");
-                        sleep(Duration::from_secs(RETRY_DELAY_SECS)).await;
-                    } else {
-                        tracing::error!(
-                            "Could not get calendar after {MAX_RETRIES} attempts. Giving up"
-                        );
-                        // Decide what to do if we can't fetch the calendar
-                        todo!()
+        let time_now = chrono::Local::now().hour();
+        if (START_POLLING_TIME..END_POLLING_TIME).contains(&time_now) {
+            tracing::info!("Polling calendar");
+            for attempt in 1..=MAX_RETRIES {
+                match shared::pull_data_from_garden::get_calendar().await {
+                    Ok(availabilities) => {
+                        let timestamp = chrono::Local::now().timestamp();
+                        let mut old_cal = state.calendar.write().expect("Failed to get mut guard");
+                        old_cal.availabilities = availabilities;
+                        old_cal.timestamp = timestamp;
+                        tracing::info!("Calendar fetched!");
+                        break;
+                    }
+                    Err(e) => {
+                        if attempt < MAX_RETRIES {
+                            tracing::warn!("Failed to get calendar: {e}. Retrying...");
+                            sleep(Duration::from_secs(RETRY_DELAY_SECS)).await;
+                        } else {
+                            tracing::error!(
+                                "Could not get calendar after {MAX_RETRIES} attempts. Giving up"
+                            );
+                            // Decide what to do if we can't fetch the calendar
+                            todo!()
+                        }
                     }
                 }
             }
+        } else {
+            tracing::info!("Not the time to poll, let's sleep... zzzZZZzzZZZ");
         }
         let sleep_duration = if cfg!(feature = "local_dev") {
             // Use a short interval for local development
