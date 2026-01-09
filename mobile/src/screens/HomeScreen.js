@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { StyleSheet, View, Text, ScrollView, Alert } from "react-native";
+import { StyleSheet, View, Text, ScrollView, Alert, ActivityIndicator, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../styles/theme";
 import MonthNav from "../components/MonthNav";
@@ -17,6 +17,7 @@ export default function HomeScreen() {
     new Date(2026, 0, 1),
   );
   const [availabilities, setAvailabilities] = useState({});
+  const [loading, setLoading] = useState(false);
 
   const evening_week_filter = {
     id: "default-filter-evenings",
@@ -50,64 +51,69 @@ export default function HomeScreen() {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [createFilterVisible, setCreateFilterVisible] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      // Determine API URL based on platform
-      const baseUrl = "https://xoi-lap-xuong.com";
-      const apiUrl = `${baseUrl}/viva-padel/calendar`;
-      console.log(`Fetching from: ${apiUrl}`);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    // Determine API URL based on platform
+    const baseUrl = "https://xoi-lap-xuong.com";
+    const apiUrl = `${baseUrl}/viva-padel/calendar`;
+    console.log(`Fetching from: ${apiUrl}`);
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "CF-Access-Client-Id": process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID,
+          "CF-Access-Client-Secret":
+            process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET,
+        },
+      });
+      const responseText = await response.text(); // Read body as text first
+
+      if (!response.ok) {
+        console.error(
+          `HTTP error! Status: ${response.status}, Body: ${responseText}`,
+        );
+        Alert.alert(
+          "Server Error",
+          `The server responded with an error (Status: ${response.status}).`,
+          [{ text: "OK" }],
+        );
+        setLoading(false);
+        return;
+      }
 
       try {
-        const response = await fetch(apiUrl, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "CF-Access-Client-Id": process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID,
-            "CF-Access-Client-Secret":
-              process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET,
-          },
-        });
-        const responseText = await response.text(); // Read body as text first
-
-        if (!response.ok) {
-          console.error(
-            `HTTP error! Status: ${response.status}, Body: ${responseText}`,
-          );
-          Alert.alert(
-            "Server Error",
-            `The server responded with an error (Status: ${response.status}).`,
-            [{ text: "OK" }],
-          );
-          return;
-        }
-
-        try {
-          const data = JSON.parse(responseText); // Now, try to parse the text
-          setAvailabilities(data.availabilities || {});
-        } catch (jsonError) {
-          console.error("Failed to parse JSON:", jsonError.message);
-          console.error(
-            "Raw response body that failed to parse:",
-            responseText,
-          );
-          Alert.alert(
-            "Invalid Response",
-            "Received an invalid response from the server.",
-            [{ text: "OK" }],
-          );
-        }
-      } catch (networkError) {
-        console.error("Network error fetching data:", networkError.message);
+        const data = JSON.parse(responseText); // Now, try to parse the text
+        setAvailabilities(data.availabilities || {});
+      } catch (jsonError) {
+        console.error("Failed to parse JSON:", jsonError.message);
+        console.error(
+          "Raw response body that failed to parse:",
+          responseText,
+        );
         Alert.alert(
-          "Connection Error",
-          "The server is not available. Please try again later.",
+          "Invalid Response",
+          "Received an invalid response from the server.",
           [{ text: "OK" }],
         );
       }
-    };
-
-    fetchData();
+    } catch (networkError) {
+      console.error("Detailed Network Error:", networkError);
+      console.error("Network error message:", networkError.message);
+      Alert.alert(
+        "Connection Error",
+        `The server is not available: ${networkError.message}. Please try again later.`,
+        [{ text: "OK" }],
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handlePrevMonth = () => {
     setCurrentMonthDate(
@@ -187,7 +193,21 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Réservations de Padel</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Réservations de Padel</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={fetchData}
+          disabled={loading}
+          activeOpacity={0.7}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+          ) : (
+            <Text style={styles.refreshIcon}>↻</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       <FilterBar
@@ -251,16 +271,48 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
-    padding: theme.spacing.m,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 64,
+    paddingHorizontal: theme.spacing.m,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
-    alignItems: "center",
     backgroundColor: theme.colors.background,
   },
   headerTitle: {
     color: theme.colors.primary,
     fontSize: theme.text.header.fontSize,
     fontWeight: theme.text.header.fontWeight,
+  },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  refreshButton: {
+    position: "absolute",
+    right: theme.spacing.m,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
+    alignItems: "center",
+    justifyContent: "center",
+    // Shadow for a premium feel
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  refreshIcon: {
+    color: theme.colors.grayText,
+    fontSize: 22,
+    fontWeight: "bold",
+    marginTop: -2,
   },
   content: {
     padding: theme.spacing.m,

@@ -53,13 +53,14 @@ export default function CreateFilterModal({ visible, onClose, onCreate }) {
   };
 
   const handleSubmit = () => {
-    if (!name.trim()) {
+    const trimmed_name = name.trim();
+    if (trimmed_name) {
       Alert.alert("Incomplete Form", "Please enter a name for the filter.");
       return; // Stop the submission
     }
 
     const newFilter = {
-      name: name.trim(),
+      name: trimmed_name,
       types: { indoor, outdoor },
       weekdays: selectedDays,
       startTime: minutesToTime(timeRange[0]), // Convert back to string

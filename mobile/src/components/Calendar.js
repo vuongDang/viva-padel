@@ -17,11 +17,21 @@ export default function Calendar({ availabilities, currentMonthDate, onDateClick
 
     const days = [];
 
+    const today = new Date();
+    const todayDay = today.getDate();
+    const todayMonth = today.getMonth();
+    const todayYear = today.getFullYear();
+
     // Padding prev month
     for (let i = 0; i < firstDay; i++) {
+        const d = prevMonthLastDay - (firstDay - 1 - i);
+        const cellDate = new Date(year, month - 1, d);
+        const isToday = d === todayDay && cellDate.getMonth() === todayMonth && cellDate.getFullYear() === todayYear;
+
         days.push({
-            day: prevMonthLastDay - (firstDay - 1 - i),
+            day: d,
             isOtherMonth: true,
+            isToday,
             key: `prev-${i}`
         });
     }
@@ -36,10 +46,12 @@ export default function Calendar({ availabilities, currentMonthDate, onDateClick
         // Since logic is complex, let's assume `filterFn` returns boolean if date has availability
 
         const hasAvailability = filterFn ? filterFn(dateStr) : false;
+        const isToday = d === todayDay && month === todayMonth && year === todayYear;
 
         days.push({
             day: d,
             isOtherMonth: false,
+            isToday,
             hasAvailability,
             dateStr,
             key: `curr-${d}`
@@ -51,9 +63,13 @@ export default function Calendar({ availabilities, currentMonthDate, onDateClick
     const remainingCells = totalCellsSoFar % 7 === 0 ? 0 : 7 - (totalCellsSoFar % 7);
 
     for (let i = 1; i <= remainingCells; i++) {
+        const cellDate = new Date(year, month + 1, i);
+        const isToday = i === todayDay && cellDate.getMonth() === todayMonth && cellDate.getFullYear() === todayYear;
+
         days.push({
             day: i,
             isOtherMonth: true,
+            isToday,
             key: `next-${i}`
         });
     }
@@ -83,7 +99,7 @@ export default function Calendar({ availabilities, currentMonthDate, onDateClick
 }
 
 function DayCell({ item, onPress }) {
-    const isToday = !item.isOtherMonth && isItemsToday(item.day);
+    const isToday = item.isToday;
     const scaleValue = React.useRef(new Animated.Value(1)).current;
 
     const handlePressIn = () => {
@@ -127,16 +143,6 @@ function DayCell({ item, onPress }) {
     );
 }
 
-function isItemsToday(day) {
-    const today = new Date();
-    // Assuming hardcoded year logic from main.js? "2026, 0, 1"
-    // No, main.js compares with actual today.
-    return day === today.getDate() && today.getMonth() === 0 && today.getFullYear() === 2026;
-    // Wait, the main.js logic was:
-    // if (!isOtherMonth && day === today.getDate() && 2026 === today.getFullYear() && 0 === today.getMonth()) 
-    // This seems to imply current date in the app context is Jan 2026.
-    // I should replicate that logic or use actual date.
-}
 
 const styles = StyleSheet.create({
     container: {
@@ -173,7 +179,7 @@ const styles = StyleSheet.create({
         borderColor: theme.colors.border,
         padding: 4,
         alignItems: 'center',
-        justifyContent: 'flex-start', // Align content to top
+        justifyContent: 'center', // Center content
     },
     dayOtherMonth: {
         backgroundColor: '#f1f3f4',
@@ -190,7 +196,6 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 4,
     },
     dayNumber: {
         fontSize: 14,
