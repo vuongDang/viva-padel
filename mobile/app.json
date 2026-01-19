@@ -2,6 +2,7 @@
   "expo": {
     "name": "viva-padel",
     "slug": "viva-padel",
+    "scheme": "viva-padel",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/viva-padel-icon.png",
