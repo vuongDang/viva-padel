@@ -6,16 +6,16 @@ import FilterBar from "../components/FilterBar";
 import Calendar from "../components/Calendar";
 import AvailabilityModal from "../components/Modals/AvailabilityModal";
 import BookingModal from "../components/Modals/BookingModal";
-import CreateFilterModal from "../components/Modals/CreateFilterModal";
+import CreationModal from "../components/Modals/CreationModal";
 import { matchesFilter } from "../utils/filterUtils";
 
-export default function ReservationsScreen({ 
-    navigation, 
-    openDrawer, 
-    availabilities, 
-    loading, 
-    onRefresh, 
-    onInitialLoad 
+export default function ReservationsScreen({
+    navigation,
+    openDrawer,
+    availabilities,
+    loading,
+    onRefresh,
+    onInitialLoad
 }) {
     const [currentMonthDate, setCurrentMonthDate] = useState(new Date(2026, 0, 1));
 
@@ -145,15 +145,20 @@ export default function ReservationsScreen({
             />
 
             <BookingModal visible={bookingModalVisible} slotGroup={selectedSlot} onClose={() => setBookingModalVisible(false)} />
-            <CreateFilterModal visible={createFilterVisible} onClose={() => setCreateFilterVisible(false)} onCreate={handleCreateFilter} />
+            <CreationModal
+                visible={createFilterVisible}
+                onClose={() => setCreateFilterVisible(false)}
+                onCreate={handleCreateFilter}
+                mode="filter"
+            />
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { 
-        flex: 1, 
-        backgroundColor: '#FAFAFA' 
+    container: {
+        flex: 1,
+        backgroundColor: '#FAFAFA'
     },
     header: {
         height: 56,
@@ -188,19 +193,19 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    refreshIcon: { 
-        fontSize: 20, 
-        color: '#333' 
+    refreshIcon: {
+        fontSize: 20,
+        color: '#333'
     },
-    content: { 
-        padding: 20, 
-        paddingBottom: 60 
+    content: {
+        padding: 20,
+        paddingBottom: 60
     },
-    footerNote: { 
-        marginTop: 20, 
-        textAlign: 'center', 
-        fontSize: 12, 
-        color: '#999', 
-        fontStyle: 'italic' 
+    footerNote: {
+        marginTop: 20,
+        textAlign: 'center',
+        fontSize: 12,
+        color: '#999',
+        fontStyle: 'italic'
     },
 });
