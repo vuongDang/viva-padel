@@ -174,3 +174,17 @@ async fn test_get_user() {
     let saved_alarm: Alarm = serde_json::from_str(&db_alarm.alarm_json).unwrap();
     assert_eq!(saved_alarm.name, alarm.name);
 }
+
+#[tokio::test]
+async fn test_signup_invalid_email() {
+    let (server, _) = setup_test_server().await;
+
+    let response = server
+        .post("/viva-padel/signup")
+        .json(&json!({ "email": "invalid-email" }))
+        .await;
+
+    response.assert_status_bad_request();
+    let error: serde_json::Value = response.json();
+    assert!(error["error"].as_str().unwrap().contains("email"));
+}

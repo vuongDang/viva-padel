@@ -3,12 +3,44 @@ use crate::auth::AuthUser;
 use crate::models::{Alarm, User};
 use axum::extract::State;
 use axum::routing::{get, post};
+use axum::response::{IntoResponse, Response};
 use axum::{Json, Router, http::StatusCode};
 use chrono::{TimeDelta, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use thiserror::Error;
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
+use validator::Validate;
+
+#[derive(Debug, Error)]
+pub enum ApiError {
+    #[error("Internal server error: {0}")]
+    Internal(String),
+    #[error("Not found: {0}")]
+    NotFound(String),
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
+    #[error("Bad request: {0}")]
+    BadRequest(String),
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        let (status, message) = match self {
+            Self::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            Self::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            Self::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
+            Self::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            Self::ValidationError(msg) => (StatusCode::BAD_REQUEST, msg),
+        };
+
+        (status, Json(json!({ "error": message }))).into_response()
+    }
+}
 
 pub fn create_router(state: AppState) -> Router {
     let api_router = Router::new()
@@ -45,11 +77,11 @@ pub struct RegisterDeviceRequest {
 pub(crate) async fn register_device(
     State(state): State<AppState>,
     Json(payload): Json<RegisterDeviceRequest>,
-) -> Result<StatusCode, (StatusCode, String)> {
+) -> Result<StatusCode, ApiError> {
     let user_id = match sqlx::query!("SELECT id FROM users WHERE email = ?", payload.email)
         .fetch_optional(&state.db)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(|e| ApiError::Internal(e.to_string()))?
     {
         Some(row) => row.id,
         None => {
@@ -63,7 +95,7 @@ pub(crate) async fn register_device(
             )
             .execute(&state.db)
             .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+            .map_err(|e| ApiError::Internal(e.to_string()))?;
             id.to_string()
         }
     };
@@ -77,7 +109,7 @@ pub(crate) async fn register_device(
     )
     .execute(&state.db)
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     Ok(StatusCode::OK)
 }
@@ -91,15 +123,15 @@ pub(crate) async fn update_alarms(
     auth: AuthUser,
     State(state): State<AppState>,
     Json(payload): Json<UpdateAlarmRequest>,
-) -> Result<StatusCode, (StatusCode, String)> {
+) -> Result<StatusCode, ApiError> {
     let user_id = Uuid::parse_str(&auth.user_id)
-        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid user ID: {}", e)))?;
+        .map_err(|e| ApiError::BadRequest(format!("Invalid user ID: {}", e)))?;
 
     // Remove all previous user alarms
     sqlx::query!("DELETE FROM alarms WHERE user_id = ?", user_id)
         .execute(&state.db)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     let now = Utc::now();
     for alarm in payload.alarms {
@@ -115,7 +147,7 @@ pub(crate) async fn update_alarms(
         )
         .execute(&state.db)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| ApiError::Internal(e.to_string()))?;
     }
 
     Ok(StatusCode::OK)
@@ -130,44 +162,49 @@ pub struct GetUserResponse {
 pub(crate) async fn get_user(
     auth: AuthUser,
     State(state): State<AppState>,
-) -> Result<Json<GetUserResponse>, (StatusCode, String)> {
+) -> Result<Json<GetUserResponse>, ApiError> {
     let user_id = Uuid::parse_str(&auth.user_id)
-        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid user ID: {}", e)))?;
+        .map_err(|e| ApiError::BadRequest(format!("Invalid user ID: {}", e)))?;
 
     let user = sqlx::query_as::<_, User>("SELECT * FROM users where id = ?")
         .bind(user_id)
         .fetch_one(&state.db)
         .await
-        .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+        .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     // Fetch alarms
     let alarms_rows = sqlx::query!("SELECT alarm_json FROM alarms WHERE user_id = ?", user_id)
         .fetch_all(&state.db)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     let alarms: Vec<Alarm> = alarms_rows
         .into_iter()
         .map(|record| {
             let alarm_json: String = record.alarm_json;
             serde_json::from_str::<Alarm>(&alarm_json)
-                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+                .map_err(|e| ApiError::Internal(e.to_string()))
         })
-        .collect::<Result<Vec<Alarm>, (StatusCode, String)>>()?;
+        .collect::<Result<Vec<Alarm>, ApiError>>()?;
 
     let response = GetUserResponse { user, alarms };
     Ok(Json(response))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct SignupRequest {
+    #[validate(email)]
     pub email: String,
 }
 
 pub(crate) async fn signup(
     State(state): State<AppState>,
     Json(payload): Json<SignupRequest>,
-) -> Result<(StatusCode, Json<User>), (StatusCode, String)> {
+) -> Result<(StatusCode, Json<User>), ApiError> {
+    payload
+        .validate()
+        .map_err(|e| ApiError::ValidationError(e.to_string()))?;
+
     let user = User::new(payload.email);
     sqlx::query!(
         "INSERT INTO users (id, email, created_at) VALUES (?, ?,  ?)",
@@ -177,7 +214,7 @@ pub(crate) async fn signup(
     )
     .execute(&state.db)
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     Ok((StatusCode::CREATED, Json(user)))
 }
@@ -195,13 +232,13 @@ pub struct LoginResponse {
 pub(crate) async fn login(
     State(state): State<AppState>,
     Json(payload): Json<LoginRequest>,
-) -> Result<(StatusCode, Json<LoginResponse>), (StatusCode, String)> {
+) -> Result<(StatusCode, Json<LoginResponse>), ApiError> {
     use crate::auth::Claims;
     let user = sqlx::query_as::<_, User>("SELECT * FROM users where email = ?")
-        .bind(payload.email)
+        .bind(&payload.email)
         .fetch_one(&state.db)
         .await
-        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+        .map_err(|_| ApiError::BadRequest(format!("Utilisateur non trouvé: {}", payload.email)))?;
 
     let expiration = Utc::now()
         .checked_add_signed(TimeDelta::days(14))
@@ -219,7 +256,7 @@ pub(crate) async fn login(
         &claims,
         &EncodingKey::from_secret(state.jwt_secret.as_bytes()),
     )
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     Ok((StatusCode::OK, Json(LoginResponse { token })))
 }

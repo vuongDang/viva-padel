@@ -1,7 +1,8 @@
 use axum::{
     extract::FromRequestParts,
-    http::{StatusCode, request::Parts},
+    http::request::Parts,
 };
+use crate::api::ApiError;
 use jsonwebtoken::{DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
 
@@ -20,30 +21,24 @@ impl<S> FromRequestParts<S> for AuthUser
 where
     S: Send + Sync,
 {
-    type Rejection = (StatusCode, String);
+    type Rejection = crate::api::ApiError;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         let state = parts
             .extensions
             .get::<crate::AppState>()
-            .ok_or((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "AppState not found in request extensions".into(),
-            ))?;
+            .ok_or_else(|| ApiError::Internal("AppState not found in request extensions".into()))?;
 
         // 1. Get the Authorization header
         let auth_header = parts
             .headers
             .get("Authorization")
             .and_then(|value| value.to_str().ok())
-            .ok_or((
-                StatusCode::UNAUTHORIZED,
-                "Missing Authorization header".into(),
-            ))?;
+            .ok_or_else(|| ApiError::Unauthorized("Missing Authorization header".into()))?;
 
         // 2. Check if it starts with "Bearer "
         if !auth_header.starts_with("Bearer ") {
-            return Err((StatusCode::UNAUTHORIZED, "Invalid token type".into()));
+            return Err(ApiError::Unauthorized("Invalid token type".into()));
         }
 
         let token = &auth_header[7..]; // Strip "Bearer "
@@ -54,12 +49,7 @@ where
             &DecodingKey::from_secret(state.jwt_secret.as_bytes()),
             &Validation::default(),
         )
-        .map_err(|e| {
-            (
-                StatusCode::UNAUTHORIZED,
-                format!("Invalid or expired token: {}", e),
-            )
-        })?;
+        .map_err(|e| ApiError::Unauthorized(format!("Invalid or expired token: {}", e)))?;
 
         // 4. Return the authenticated user
         Ok(AuthUser {
