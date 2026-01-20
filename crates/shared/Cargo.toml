@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 thiserror = "1.0"
-chrono = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
 reqwest = { workspace = true }
 testcases = { workspace = true, optional = true }
 serde = { workspace = true }

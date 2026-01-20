@@ -27,8 +27,7 @@ pub async fn get_day_planning(date: &str) -> Result<DayPlanningResponse, Error> 
 
 const NB_DAYS_IN_BATCH: u64 = 90;
 
-#[cfg(feature = "local_dev")]
-pub async fn get_calendar() -> Result<BTreeMap<String, DayPlanningResponse>, Error> {
+pub fn json_to_calendar() -> BTreeMap<String, DayPlanningResponse> {
     let today = chrono::Local::now().date_naive();
     let next_3_months = batch_dates(today, NB_DAYS_IN_BATCH);
     let mut calendar = BTreeMap::new();
@@ -39,7 +38,12 @@ pub async fn get_calendar() -> Result<BTreeMap<String, DayPlanningResponse>, Err
             serde_json::from_str(json_planning.get(i % json_planning.len()).unwrap()).unwrap();
         calendar.insert(date_str, day_planning);
     }
-    Ok(calendar)
+    calendar
+}
+
+#[cfg(feature = "local_dev")]
+pub async fn get_calendar() -> Result<BTreeMap<String, DayPlanningResponse>, Error> {
+    Ok(json_to_calendar())
 }
 
 #[cfg(not(feature = "local_dev"))]

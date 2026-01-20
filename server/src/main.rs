@@ -1,30 +1,8 @@
-#![warn(unused_crate_dependencies)]
-mod api;
-use api::*;
-
-use chrono::Timelike;
-use serde::Serialize;
-use shared::models::DayPlanningResponse;
-use std::{
-    collections::BTreeMap,
-    net::SocketAddr,
-    sync::{Arc, RwLock},
-    time::Duration,
-};
-use tokio::time::sleep;
+use std::net::SocketAddr;
+use std::sync::{Arc, RwLock};
+use sqlx::sqlite::SqlitePool;
+use viva_padel_server::{api::create_router, AppState, Calendar, poll_calendar};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct Calendar {
-    pub timestamp: i64,
-    pub availabilities: BTreeMap<String, DayPlanningResponse>,
-}
-
-#[derive(Clone)]
-pub struct AppState {
-    /// A calendar containing LeGarden availabilities
-    pub calendar: Arc<RwLock<Calendar>>,
-}
 
 #[tokio::main]
 async fn main() {
@@ -32,14 +10,29 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    dotenvy::dotenv().expect("Failed to load .env file");
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let pool = SqlitePool::connect(&database_url)
+        .await
+        .expect("Failed to connect to the database");
+
+    // Run migrations
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to run database migrations");
+
+    let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
     let state = AppState {
         calendar: Arc::new(RwLock::new(Calendar::default())),
+        db: pool,
+        jwt_secret,
     };
 
     // Poll LeGarden server to get courts availabilities
-    let mut poll_state = state.clone();
+    let poll_state = state.clone();
     tokio::spawn(async move {
-        poll_calendar(&mut poll_state).await;
+        poll_calendar(poll_state).await;
     });
 
     let app = create_router(state);
@@ -48,52 +41,4 @@ async fn main() {
     tracing::info!("Listening on {}", addr);
 
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn poll_calendar(state: &mut AppState) {
-    const MAX_RETRIES: u32 = 3;
-    const RETRY_DELAY_SECS: u64 = 5;
-    const START_POLLING_TIME: u32 = 7;
-    const END_POLLING_TIME: u32 = 23;
-    loop {
-        let time_now = chrono::Local::now().hour();
-        if (START_POLLING_TIME..END_POLLING_TIME).contains(&time_now) {
-            tracing::info!("Polling calendar");
-            for attempt in 1..=MAX_RETRIES {
-                match shared::pull_data_from_garden::get_calendar().await {
-                    Ok(availabilities) => {
-                        let timestamp = chrono::Local::now().timestamp();
-                        let mut old_cal = state.calendar.write().expect("Failed to get mut guard");
-                        old_cal.availabilities = availabilities;
-                        old_cal.timestamp = timestamp;
-                        tracing::info!("Calendar fetched!");
-                        break;
-                    }
-                    Err(e) => {
-                        if attempt < MAX_RETRIES {
-                            tracing::warn!("Failed to get calendar: {e}. Retrying...");
-                            sleep(Duration::from_secs(RETRY_DELAY_SECS)).await;
-                        } else {
-                            tracing::error!(
-                                "Could not get calendar after {MAX_RETRIES} attempts. Giving up"
-                            );
-                            // Decide what to do if we can't fetch the calendar
-                            todo!()
-                        }
-                    }
-                }
-            }
-        } else {
-            tracing::info!("Not the time to poll, let's sleep... zzzZZZzzZZZ");
-        }
-        let sleep_duration = if cfg!(feature = "local_dev") {
-            // Use a short interval for local development
-            Duration::from_secs(10)
-        } else {
-            // Use a longer interval for production
-            Duration::from_secs(30 * 60)
-        };
-        tracing::info!("Waiting for {:?} before next poll.", sleep_duration);
-        sleep(sleep_duration).await;
-    }
 }
