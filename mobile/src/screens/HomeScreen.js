@@ -1,14 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
+import LoginModal from '../components/Modals/LoginModal';
 
-export default function HomeScreen({ navigation, openDrawer }) {
+export default function HomeScreen({ navigation, openDrawer, user, onLogout, onLogin }) {
+  const [loginModalVisible, setLoginModalVisible] = useState(false);
   const currentDate = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long',
     day: 'numeric',
     month: 'long'
   });
+
+  const handleAuthPress = () => {
+    if (user) {
+      onLogout();
+    } else {
+      setLoginModalVisible(true);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -17,12 +27,21 @@ export default function HomeScreen({ navigation, openDrawer }) {
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Viva Padel</Text>
+        <View style={styles.headerSpacer} />
+        <TouchableOpacity
+          style={[styles.loginButton, user && styles.logoutButton]}
+          onPress={handleAuthPress}
+        >
+          <Text style={[styles.loginButtonText, user && styles.logoutButtonText]}>
+            {user ? 'Déconnexion' : 'Connexion'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.welcomeSection}>
           <Text style={styles.dateText}>{currentDate}</Text>
-          <Text style={styles.welcomeTitle}>Bonjour</Text>
+          <Text style={styles.welcomeTitle}>{user ? `Bonjour ${user.email.split('@')[0]}` : 'Bonjour'}</Text>
         </View>
 
         <Text style={styles.sectionTitle}>Actions</Text>
@@ -43,6 +62,12 @@ export default function HomeScreen({ navigation, openDrawer }) {
           <Text style={styles.actionDesc}>Configurer les alertes</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <LoginModal
+        visible={loginModalVisible}
+        onClose={() => setLoginModalVisible(false)}
+        onLogin={onLogin}
+      />
     </SafeAreaView>
   );
 }
@@ -75,6 +100,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1A1A1A',
     marginLeft: 8,
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  loginButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#F0F0F0',
+  },
+  logoutButton: {
+    backgroundColor: '#FFF1F0',
+    borderWidth: 1,
+    borderColor: '#FFA39E',
+  },
+  loginButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  logoutButtonText: {
+    color: '#F5222D',
   },
   content: {
     padding: 20,

@@ -8,6 +8,7 @@ import AvailabilityModal from "../components/Modals/AvailabilityModal";
 import BookingModal from "../components/Modals/BookingModal";
 import CreationModal from "../components/Modals/CreationModal";
 import { matchesFilter } from "../utils/filterUtils";
+import { FilterService } from "../services/filterService";
 
 export default function ReservationsScreen({
     navigation,
@@ -37,7 +38,7 @@ export default function ReservationsScreen({
         endTime: "12:30",
     };
 
-    const [filters, setFilters] = useState([evening_week_filter, lunch_week_filter]);
+    const [filters, setFilters] = useState([]);
     const [activeFilterId, setActiveFilterId] = useState("all");
     const [deleteMode, setDeleteMode] = useState(false);
 
@@ -48,8 +49,23 @@ export default function ReservationsScreen({
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [createFilterVisible, setCreateFilterVisible] = useState(false);
 
-    // Trigger initial load when screen mounts
+    // Load filters and active selection on mount
     useEffect(() => {
+        const loadInitialData = async () => {
+            const savedFilters = await FilterService.loadFilters();
+            const lastActiveId = await FilterService.loadActiveFilterId();
+
+            if (savedFilters && savedFilters.length > 0) {
+                setFilters(savedFilters);
+            } else {
+                setFilters([evening_week_filter, lunch_week_filter]);
+            }
+
+            if (lastActiveId) {
+                setActiveFilterId(lastActiveId);
+            }
+        };
+        loadInitialData();
         onInitialLoad();
     }, []);
 
@@ -61,19 +77,28 @@ export default function ReservationsScreen({
         setCurrentMonthDate(new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() + 1, 1));
     };
 
-    const handleCreateFilter = (newFilter) => {
+    const handleCreateFilter = async (newFilter) => {
         const id = "filter-" + Date.now().toString();
-        setFilters([...filters, { ...newFilter, id }]);
+        const updatedFilters = [...filters, { ...newFilter, id }];
+        setFilters(updatedFilters);
+        await FilterService.saveFilters(updatedFilters);
         setCreateFilterVisible(false);
         setActiveFilterId(id);
+        await FilterService.saveActiveFilterId(id);
     };
 
-    const handleFilterSelect = (id) => {
+    const handleFilterSelect = async (id) => {
         if (deleteMode && id !== "all") {
-            setFilters(filters.filter((f) => f.id !== id));
-            if (activeFilterId === id) setActiveFilterId("all");
+            const updatedFilters = filters.filter((f) => f.id !== id);
+            setFilters(updatedFilters);
+            await FilterService.saveFilters(updatedFilters);
+            if (activeFilterId === id) {
+                setActiveFilterId("all");
+                await FilterService.saveActiveFilterId("all");
+            }
         } else {
             setActiveFilterId(id);
+            await FilterService.saveActiveFilterId(id);
         }
     };
 

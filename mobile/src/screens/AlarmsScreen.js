@@ -1,14 +1,29 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CreationModal from '../components/Modals/CreationModal';
+import LoginModal from '../components/Modals/LoginModal';
+import { AlarmService } from '../services/alarmService';
 
 const WEEKDAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
-export default function AlarmsScreen({ navigation, openDrawer }) {
+export default function AlarmsScreen({ navigation, openDrawer, user, serverAlarms = [], onLogin, onLogout }) {
     const [alarms, setAlarms] = useState([]);
     const [createModalVisible, setCreateModalVisible] = useState(false);
     const [editingAlarm, setEditingAlarm] = useState(null);
+    const [loginModalVisible, setLoginModalVisible] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+
+    // Track if we've already synced the local state with the server prop
+    const hasInitializedRef = useRef(false);
+
+    // Sync local state when server alarms are fetched/updated
+    useEffect(() => {
+        if (serverAlarms && serverAlarms.length > 0 && !hasInitializedRef.current) {
+            setAlarms(serverAlarms);
+            hasInitializedRef.current = true;
+        }
+    }, [serverAlarms]);
 
     const formatDays = (days) => {
         if (!days || days.length === 0) return "";
@@ -20,7 +35,7 @@ export default function AlarmsScreen({ navigation, openDrawer }) {
         let finalName = alarmConfig.name;
         const otherAlarms = alarms.filter(a => a.id !== alarmConfig.id);
 
-        // check if name already exists
+        // Check if name already exists
         let counter = 1;
         while (otherAlarms.some(a => a.name === finalName)) {
             finalName = `${alarmConfig.name} ${counter}`;
@@ -60,6 +75,23 @@ export default function AlarmsScreen({ navigation, openDrawer }) {
         setAlarms(alarms.map(alarm =>
             alarm.id === id ? { ...alarm, activated: !alarm.activated } : alarm
         ));
+    };
+
+    const handleSyncAlarms = async () => {
+        if (!user) {
+            setLoginModalVisible(true);
+            return;
+        }
+
+        setSyncing(true);
+        try {
+            await AlarmService.syncAlarms(alarms);
+            Alert.alert("Succès", "Vos alarmes sont maintenant actives sur le serveur !");
+        } catch (error) {
+            Alert.alert("Erreur", error.message);
+        } finally {
+            setSyncing(false);
+        }
     };
 
     return (
@@ -116,8 +148,16 @@ export default function AlarmsScreen({ navigation, openDrawer }) {
                         <Text style={styles.primaryButtonText}>Créer</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.button, styles.secondaryButton]}>
-                        <Text style={styles.secondaryButtonText}>Activer</Text>
+                    <TouchableOpacity
+                        style={[styles.button, styles.secondaryButton, syncing && styles.disabledButton]}
+                        onPress={handleSyncAlarms}
+                        disabled={syncing}
+                    >
+                        {syncing ? (
+                            <ActivityIndicator size="small" color="#1A1A1A" />
+                        ) : (
+                            <Text style={styles.secondaryButtonText}>Activer</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -132,6 +172,12 @@ export default function AlarmsScreen({ navigation, openDrawer }) {
                 onDelete={deleteAlarm}
                 mode="alarm"
                 initialData={editingAlarm}
+            />
+
+            <LoginModal
+                visible={loginModalVisible}
+                onClose={() => setLoginModalVisible(false)}
+                onLogin={onLogin}
             />
         </SafeAreaView>
     );
@@ -258,5 +304,8 @@ const styles = StyleSheet.create({
         color: '#333',
         fontSize: 15,
         fontWeight: '600',
+    },
+    disabledButton: {
+        opacity: 0.5,
     },
 });

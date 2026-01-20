@@ -9,6 +9,8 @@ import AlarmsScreen from './src/screens/AlarmsScreen';
 import CustomDrawer from './src/components/CustomDrawer';
 import * as Notifications from 'expo-notifications';
 import { NotificationService } from './src/services/notificationService';
+import { AuthService } from './src/services/authService';
+import { AlarmService } from './src/services/alarmService';
 
 const Stack = createNativeStackNavigator();
 
@@ -18,6 +20,10 @@ export default function App() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const navigationRef = React.useRef(null);
+
+  // Authentication state
+  const [user, setUser] = useState(null);
+  const [serverAlarms, setServerAlarms] = useState([]);
 
   // Lifted state for reservations data
   const [availabilities, setAvailabilities] = useState({});
@@ -63,6 +69,21 @@ export default function App() {
     }
   }, []);
 
+  const fetchUserInfo = useCallback(async (token, email) => {
+    try {
+      const data = await AuthService.getUserInfo(token);
+      if (data.alarms) {
+        const mapped = AlarmService.mapServerAlarmsToMobile(data.alarms);
+        setServerAlarms(mapped);
+        console.log('[App] Fetched and mapped alarms:', mapped.length);
+      }
+    } catch (error) {
+      console.error('[App] Failed to fetch user info:', error);
+      // If user info fails but we have token/email, we still stay logged in
+      // but alarms won't be synced.
+    }
+  }, []);
+
   const lastResponse = Notifications.useLastNotificationResponse();
 
   useEffect(() => {
@@ -74,6 +95,18 @@ export default function App() {
   }, [lastResponse]);
 
   useEffect(() => {
+    // Check for existing user session on mount
+    const checkUser = async () => {
+      const token = await AuthService.getToken();
+      const email = await AuthService.getEmail();
+      if (token && email) {
+        setUser({ email, token });
+        console.log('[App] Authenticated user found:', email);
+        fetchUserInfo(token, email);
+      }
+    };
+    checkUser();
+
     NotificationService.registerForPushNotificationsAsync();
 
     const cleanup = NotificationService.initListeners(
@@ -88,7 +121,18 @@ export default function App() {
     );
 
     return cleanup;
-  }, []);
+  }, [fetchUserInfo]);
+
+  const handleLogin = (email, token) => {
+    setUser({ email, token });
+    fetchUserInfo(token, email);
+  };
+
+  const handleLogout = async () => {
+    await AuthService.logout();
+    setUser(null);
+    setServerAlarms([]);
+  };
 
   const openDrawer = () => setDrawerVisible(true);
   const closeDrawer = () => setDrawerVisible(false);
@@ -121,7 +165,15 @@ export default function App() {
           detachInactiveScreens={false}
         >
           <Stack.Screen name="Home">
-            {(props) => <HomeScreen {...props} openDrawer={openDrawer} />}
+            {(props) => (
+              <HomeScreen
+                {...props}
+                openDrawer={openDrawer}
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+            )}
           </Stack.Screen>
           <Stack.Screen name="Reservations">
             {(props) => (
@@ -132,11 +184,21 @@ export default function App() {
                 loading={reservationsLoading}
                 onRefresh={() => fetchReservations(true)}
                 onInitialLoad={() => fetchReservations(false)}
+                user={user}
               />
             )}
           </Stack.Screen>
           <Stack.Screen name="Alarms">
-            {(props) => <AlarmsScreen {...props} openDrawer={openDrawer} />}
+            {(props) => (
+              <AlarmsScreen
+                {...props}
+                openDrawer={openDrawer}
+                user={user}
+                serverAlarms={serverAlarms}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+            )}
           </Stack.Screen>
         </Stack.Navigator>
       </NavigationContainer>
