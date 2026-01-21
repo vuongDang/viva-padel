@@ -27,6 +27,7 @@ export default function App() {
 
   // Lifted state for reservations data
   const [availabilities, setAvailabilities] = useState({});
+  const [calendarTimestamp, setCalendarTimestamp] = useState(null);
   const [reservationsLoading, setReservationsLoading] = useState(false);
   const hasFetchedReservations = useRef(false);
 
@@ -60,6 +61,7 @@ export default function App() {
 
       const data = JSON.parse(responseText);
       setAvailabilities(data.availabilities || {});
+      setCalendarTimestamp(data.timestamp || null);
       hasFetchedReservations.current = true;
     } catch (error) {
       console.error(error);
@@ -123,6 +125,40 @@ export default function App() {
     return cleanup;
   }, [fetchUserInfo]);
 
+  // Handle push token registration/updates
+  useEffect(() => {
+    if (!user) return;
+
+    let isMounted = true;
+
+    const register = async () => {
+      console.log('[App] Attempting to register device for user:', user.email);
+      const token = await NotificationService.registerForPushNotificationsAsync();
+      console.log('[App] Received push token:', token ? 'YES' : 'NONE');
+
+      if (token && user && isMounted) {
+        await NotificationService.registerDeviceWithServer(token, user.token, user.email);
+      } else if (!token) {
+        console.warn('[App] Could not register device: No push token received.');
+      }
+    };
+
+    register();
+
+    // Listen for token changes
+    const subscription = Notifications.addPushTokenListener(async (token) => {
+      console.log('[App] Push token changed:', token.data);
+      if (user && isMounted) {
+        await NotificationService.registerDeviceWithServer(token.data, user.token, user.email);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
+  }, [user]);
+
   const handleLogin = (email, token) => {
     setUser({ email, token });
     fetchUserInfo(token, email);
@@ -181,6 +217,7 @@ export default function App() {
                 {...props}
                 openDrawer={openDrawer}
                 availabilities={availabilities}
+                calendarTimestamp={calendarTimestamp}
                 loading={reservationsLoading}
                 onRefresh={() => fetchReservations(true)}
                 onInitialLoad={() => fetchReservations(false)}
@@ -208,6 +245,8 @@ export default function App() {
         onClose={closeDrawer}
         onNavigate={navigateTo}
         currentScreen={currentScreen}
+        user={user}
+        onLogout={handleLogout}
       />
 
       {/* Notification Content Modal */}

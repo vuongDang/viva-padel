@@ -14,6 +14,7 @@ export default function ReservationsScreen({
     navigation,
     openDrawer,
     availabilities,
+    calendarTimestamp,
     loading,
     onRefresh,
     onInitialLoad
@@ -156,8 +157,11 @@ export default function ReservationsScreen({
             <MonthNav currentDate={currentMonthDate} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} />
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Calendar availabilities={availabilities} currentMonthDate={currentMonthDate} onDateClick={onDateClick} filterFn={checkAvailability} />
-                <Text style={styles.footerNote}>Les disponibilités sont rafraîchies toutes les 30 min.</Text>
+                <Calendar availabilities={availabilities} currentMonthDate={currentMonthDate} onDateClick={onDateClick} filterFn={checkAvailability} loading={loading} />
+                <Text style={styles.footerNote}>
+                    Les disponibilités sont rafraîchies toutes les 30 min de 7:00 à 23:00.{"\n"}
+                    {calendarTimestamp ? `Dernière mise à jour : ${new Date(calendarTimestamp * 1000).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : "Chargement..."}
+                </Text>
             </ScrollView>
 
             <AvailabilityModal

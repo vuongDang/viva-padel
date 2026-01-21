@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { AuthService } from "../../services/authService";
+import React, { useState, useEffect } from "react";
 import {
     StyleSheet,
     View,
@@ -9,7 +8,10 @@ import {
     TextInput,
     KeyboardAvoidingView,
     Platform,
+    ActivityIndicator,
+    Alert,
 } from "react-native";
+import { AuthService } from "../../services/authService";
 
 export default function LoginModal({ visible, onClose, onLogin }) {
     const [email, setEmail] = useState("");
@@ -18,22 +20,25 @@ export default function LoginModal({ visible, onClose, onLogin }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
+    // Clear error and email when modal opens or mode changes
+    useEffect(() => {
+        if (visible) {
+            setError("");
+        }
+    }, [visible, isSignup]);
+
     const handleSubmit = async () => {
         if (!email.trim()) return;
-        setLoading(true);
-        setError("");
 
+        setLoading(true);
         try {
             if (isSignup) {
                 await AuthService.signup(email);
-                // Switch to login mode after successful signup
-                setIsSignup(false);
-                alert("Compte créé ! Vous pouvez maintenant vous connecter.");
-            } else {
-                const response = await AuthService.login(email);
-                onLogin(email, response.token);
-                onClose();
             }
+
+            const response = await AuthService.login(email);
+            onLogin(email, response.token);
+            onClose();
         } catch (err) {
             setError(err.message || "Une erreur est survenue");
         } finally {
@@ -80,9 +85,13 @@ export default function LoginModal({ visible, onClose, onLogin }) {
                             onPress={handleSubmit}
                             disabled={loading}
                         >
-                            <Text style={styles.submitButtonText}>
-                                {loading ? "Chargement..." : (isSignup ? "Créer un compte" : "Se connecter")}
-                            </Text>
+                            {loading ? (
+                                <ActivityIndicator color="#FFF" />
+                            ) : (
+                                <Text style={styles.submitButtonText}>
+                                    {isSignup ? "Créer un compte" : "Se connecter"}
+                                </Text>
+                            )}
                         </TouchableOpacity>
 
                         <TouchableOpacity

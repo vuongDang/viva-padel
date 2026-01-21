@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/viva-padel-icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/viva-padel-icon.png",
       "resizeMode": "contain",

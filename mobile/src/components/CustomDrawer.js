@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.7;
 
-export default function CustomDrawer({ visible, onClose, onNavigate, currentScreen }) {
+export default function CustomDrawer({ visible, onClose, onNavigate, currentScreen, onLogout, user }) {
     const insets = useSafeAreaInsets();
 
     const menuItems = [
@@ -57,6 +57,20 @@ export default function CustomDrawer({ visible, onClose, onNavigate, currentScre
                             </TouchableOpacity>
                         ))}
                     </View>
+
+                    {user && (
+                        <View style={styles.logoutSection}>
+                            <TouchableOpacity
+                                style={styles.logoutItem}
+                                onPress={() => {
+                                    onLogout();
+                                    onClose();
+                                }}
+                            >
+                                <Text style={styles.logoutLabel}>Déconnexion</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
 
                     <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
                         <Text style={styles.footerText}>v1.0.0</Text>
@@ -122,5 +136,19 @@ const styles = StyleSheet.create({
     footerText: {
         fontSize: 12,
         color: '#AAA',
+    },
+    logoutSection: {
+        borderTopWidth: 1,
+        borderTopColor: '#E8E8E8',
+        paddingVertical: 8,
+    },
+    logoutItem: {
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+    },
+    logoutLabel: {
+        fontSize: 15,
+        color: '#FF4444',
+        fontWeight: '600',
     },
 });

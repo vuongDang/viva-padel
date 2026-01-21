@@ -28,14 +28,14 @@ export default function HomeScreen({ navigation, openDrawer, user, onLogout, onL
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Viva Padel</Text>
         <View style={styles.headerSpacer} />
-        <TouchableOpacity
-          style={[styles.loginButton, user && styles.logoutButton]}
-          onPress={handleAuthPress}
-        >
-          <Text style={[styles.loginButtonText, user && styles.logoutButtonText]}>
-            {user ? 'Déconnexion' : 'Connexion'}
-          </Text>
-        </TouchableOpacity>
+        {!user && (
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleAuthPress}
+          >
+            <Text style={styles.loginButtonText}>Connexion</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -110,18 +110,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#F0F0F0',
   },
-  logoutButton: {
-    backgroundColor: '#FFF1F0',
-    borderWidth: 1,
-    borderColor: '#FFA39E',
-  },
   loginButtonText: {
     fontSize: 13,
     fontWeight: '600',
     color: '#1A1A1A',
-  },
-  logoutButtonText: {
-    color: '#F5222D',
   },
   content: {
     padding: 20,

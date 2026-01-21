@@ -2,6 +2,10 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+
+const LAST_TOKEN_KEY = 'viva_padel_last_notif_token';
+const LAST_USER_KEY = 'viva_padel_last_notif_user';
 
 // This handler determines how to show a notification when the app is in the FOREGROUND.
 // When the app is in the BACKGROUND or CLOSED, the OS handles the display automatically.
@@ -12,6 +16,8 @@ Notifications.setNotificationHandler({
         shouldSetBadge: true,
     }),
 });
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export const NotificationService = {
     /**
@@ -24,13 +30,13 @@ export const NotificationService = {
         // Detect if we are running in Expo Go
         const isExpoGo = Constants.appOwnership === 'expo';
         if (isExpoGo) {
-            console.warn('Push Notifications (FCM) are not supported in Expo Go. Use a Development Build to test this feature.');
-            return null;
+            console.log('[NotificationService] Running in Expo Go. Will attempt to get Expo token for testing.');
+            // We continue instead of returning null to allow testing the registration flow
         }
 
         if (!Device.isDevice) {
-            console.warn('Push Notifications require a physical device');
-            return null;
+            console.warn('[NotificationService] Not a physical device. Registration might fail or return a simulation token.');
+            // For testing, we might still want to proceed if we can get a token
         }
 
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -42,7 +48,7 @@ export const NotificationService = {
         }
 
         if (finalStatus !== 'granted') {
-            console.error('Failed to get push token for push notification!');
+            console.error('[NotificationService] Permission for push notifications not granted. Status:', finalStatus);
             return null;
         }
 
@@ -76,6 +82,66 @@ export const NotificationService = {
         }
 
         return token;
+    },
+
+    /**
+     * Registers the device with the backend server.
+     * @param {string} pushToken The push token (Expo or native) 
+     * @param {string} userToken The authentication token for the current user
+     */
+    registerDeviceWithServer: async (pushToken, userToken, userEmail) => {
+        if (!pushToken || !userToken || !userEmail) {
+            console.warn('[NotificationService] Missing pushToken, userToken or userEmail for registration');
+            return;
+        }
+
+        // Optimization: check if we already registered this token for this user
+        try {
+            const lastToken = await SecureStore.getItemAsync(LAST_TOKEN_KEY);
+            const lastUser = await SecureStore.getItemAsync(LAST_USER_KEY);
+
+            if (lastToken === pushToken && lastUser === userEmail) {
+                console.log('[NotificationService] Device already registered for this user and token. Skipping server call.');
+                return;
+            }
+        } catch (e) {
+            console.warn('[NotificationService] Failed to read registration cache:', e);
+        }
+
+        const deviceId = Device.osBuildId || 'unknown_device';
+
+        try {
+            console.log('[NotificationService] Registering device with server...', { deviceId, pushToken, userEmail });
+            const response = await fetch(`${API_URL}/register-device`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userToken}`,
+                    'CF-Access-Client-Id': process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID,
+                    'CF-Access-Client-Secret': process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET,
+                },
+                body: JSON.stringify({
+                    notif_token: pushToken,
+                    device_id: deviceId,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[NotificationService] Registration failed:', errorText);
+            } else {
+                console.log('[NotificationService] Device registered successfully');
+                // Cache the registration
+                try {
+                    await SecureStore.setItemAsync(LAST_TOKEN_KEY, pushToken);
+                    await SecureStore.setItemAsync(LAST_USER_KEY, userEmail);
+                } catch (e) {
+                    console.warn('[NotificationService] Failed to write registration cache:', e);
+                }
+            }
+        } catch (error) {
+            console.error('[NotificationService] Network error during registration:', error);
+        }
     },
 
     /**

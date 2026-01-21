@@ -4,7 +4,7 @@ import { theme } from '../styles/theme';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
-export default function Calendar({ availabilities, currentMonthDate, onDateClick, filterFn }) {
+export default function Calendar({ availabilities, currentMonthDate, onDateClick, filterFn, loading }) {
     const year = currentMonthDate.getFullYear();
     const month = currentMonthDate.getMonth();
 
@@ -45,13 +45,17 @@ export default function Calendar({ availabilities, currentMonthDate, onDateClick
         // Ideally logic is passed as a prop or we process it here.
         // Since logic is complex, let's assume `filterFn` returns boolean if date has availability
 
-        const hasAvailability = filterFn ? filterFn(dateStr) : false;
         const isToday = d === todayDay && month === todayMonth && year === todayYear;
+
+        // Data is pending if we are currently loading OR if we don't have this date in the availabilities object yet
+        const isPending = loading || !availabilities || !availabilities[dateStr];
+        const hasAvailability = !isPending && filterFn ? filterFn(dateStr) : false;
 
         days.push({
             day: d,
             isOtherMonth: false,
             isToday,
+            isPending,
             hasAvailability,
             dateStr,
             key: `curr-${d}`
@@ -121,7 +125,11 @@ function DayCell({ item, onPress }) {
     // Status styles
     let statusStyle = {};
     if (!item.isOtherMonth) {
-        statusStyle = item.hasAvailability ? styles.statusAvailable : styles.statusUnavailable;
+        if (item.isPending) {
+            statusStyle = styles.statusPending;
+        } else {
+            statusStyle = item.hasAvailability ? styles.statusAvailable : styles.statusUnavailable;
+        }
     }
 
     return (
@@ -189,6 +197,9 @@ const styles = StyleSheet.create({
     },
     statusUnavailable: {
         backgroundColor: theme.colors.unavailableLight,
+    },
+    statusPending: {
+        backgroundColor: '#F0F0F0', // Grey placeholder
     },
     dayNumberContainer: {
         width: 28,
