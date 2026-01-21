@@ -23,6 +23,12 @@ pub fn json_planning_for_29_days() -> Vec<String> {
     calendar
 }
 
+pub fn json_planning_simple_day() -> String {
+    let mut path = path_to_legarden_mock_data();
+    path.push("simple_day.json");
+    std::fs::read_to_string(path).expect("Error while getting data")
+}
+
 // If PADEL_MOCK_DATA is set, pick the path from it else
 fn path_to_legarden_mock_data() -> PathBuf {
     const PATH: [&'static str; 4] = ["crates", "testcases", "data", "legarden_server"];

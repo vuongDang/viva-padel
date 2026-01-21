@@ -1,8 +1,11 @@
 //! Structure to parse JSON response from DoinSport server
 
-use serde::{Deserialize, Serialize};
+use std::{collections::BTreeMap, fmt::Debug};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+use serde::{Deserialize, Serialize};
+pub type Availibilities = BTreeMap<String, DayPlanningResponse>;
+
+#[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DayPlanningResponse {
     #[serde(rename = "@context")]
@@ -21,7 +24,21 @@ pub struct DayPlanningResponse {
     // search: Search,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+impl DayPlanningResponse {
+    pub fn simple_day() -> Self {
+        serde_json::from_str(&testcases::legarden::json_planning_simple_day()).unwrap()
+    }
+}
+
+impl Debug for DayPlanningResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DayPlanningResponse")
+            .field("courts", &self.courts)
+            .finish()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PadelCourtResponse {
     #[serde(rename = "@type")]
@@ -37,7 +54,32 @@ pub struct PadelCourtResponse {
     timetables: TimeTable,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+impl Debug for PadelCourtResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PadelCourtResponse")
+            .field("indoor", &self.indoor)
+            .field("activities", &self.activities)
+            .finish()
+    }
+}
+
+impl Default for PadelCourtResponse {
+    fn default() -> Self {
+        Self {
+            at_type: Default::default(),
+            at_id: Default::default(),
+            id: Default::default(),
+            name: Default::default(),
+            indoor: Default::default(),
+            surface: Default::default(),
+            closures: Default::default(),
+            activities: vec![CourtActivity::default()],
+            timetables: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CourtActivity {
     id: String,
@@ -45,7 +87,7 @@ pub struct CourtActivity {
     slots: Vec<Slot>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Slot {
     start_at: String,
@@ -55,7 +97,16 @@ pub struct Slot {
     user_client_step_booking_duration: usize,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+impl Debug for Slot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Slot")
+            .field("start_at", &self.start_at)
+            .field("prices", &self.prices)
+            .finish()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Price {
     id: String,
@@ -66,14 +117,23 @@ pub struct Price {
     bookable: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+impl Debug for Price {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Price")
+            .field("duration", &self.duration)
+            .field("bookable", &self.bookable)
+            .finish()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct TimeTable {
     start_at: String,
     end_at: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct View {
     #[serde(rename = "@id")]
@@ -110,6 +170,10 @@ impl DayPlanningResponse {
         &self.courts
     }
 
+    pub fn courts_mut(&mut self) -> &mut Vec<PadelCourtResponse> {
+        &mut self.courts
+    }
+
     // Get date from url request that looks like this:
     // "/clubs/playgrounds/plannings/2024-10-04?club.id=a126b4d4..."
     pub fn date(&self) -> &str {
@@ -118,6 +182,17 @@ impl DayPlanningResponse {
         let url = &self.view.id;
         let remove_first_n = BASE_REQ.len();
         &url[remove_first_n..remove_first_n + DATE_LEN]
+    }
+
+    pub fn new_with(&self, courts: Vec<PadelCourtResponse>) -> Self {
+        DayPlanningResponse {
+            context: self.context.clone(),
+            id: self.id.clone(),
+            at_type: self.at_type.clone(),
+            courts,
+            total_items: self.total_items,
+            view: self.view.clone(),
+        }
     }
 }
 
@@ -130,8 +205,21 @@ impl PadelCourtResponse {
         self.indoor
     }
 
+    pub fn set_indoor(&mut self, indoor: bool) {
+        self.indoor = indoor;
+    }
+
     pub fn slots(&self) -> &Vec<Slot> {
         &self.activities[0].slots
+    }
+
+    pub fn slots_mut(&mut self) -> &mut Vec<Slot> {
+        &mut self.activities[0].slots
+    }
+    pub fn clone_with(&self, slots: Vec<Slot>) -> Self {
+        let mut new = self.clone();
+        new.activities[0].slots = slots;
+        new
     }
 }
 
@@ -140,8 +228,28 @@ impl Slot {
         &self.start_at
     }
 
+    pub fn start_at_mut(&mut self) -> &str {
+        &mut self.start_at
+    }
+
     pub fn prices(&self) -> &Vec<Price> {
         &self.prices
+    }
+
+    pub fn prices_mut(&mut self) -> &mut Vec<Price> {
+        &mut self.prices
+    }
+
+    pub fn clone_with_prices(&self, prices: Vec<Price>) -> Self {
+        let mut new = self.clone();
+        new.prices = prices;
+        new
+    }
+
+    pub fn clone_with_start_at(&self, start_at: String) -> Self {
+        let mut new = self.clone();
+        new.start_at = start_at;
+        new
     }
 }
 
@@ -152,5 +260,9 @@ impl Price {
 
     pub fn bookable(&self) -> bool {
         self.bookable
+    }
+
+    pub fn set_bookable(&mut self, bookable: bool) {
+        self.bookable = bookable;
     }
 }

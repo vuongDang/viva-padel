@@ -20,7 +20,9 @@ async fn setup_test_server() -> (TestServer, SqlitePool) {
     let state = AppState {
         calendar: Arc::new(RwLock::new(Calendar {
             timestamp: 0,
-            availabilities: shared::pull_data_from_garden::json_to_calendar(),
+            availabilities: shared::pull_data_from_garden::json_to_calendar(
+                shared::pull_data_from_garden::NB_DAYS_IN_BATCH,
+            ),
         })),
         db: pool.clone(),
         jwt_secret: JWT_SECRET_KEY.to_string(),
@@ -163,13 +165,10 @@ async fn test_get_user() {
 
     // 4. Verify in database directly
     let user_id = uuid::Uuid::parse_str(&response.user.id.to_string()).unwrap();
-    let db_alarm = sqlx::query!(
-        "SELECT alarm_json FROM alarms WHERE user_id = ?",
-        user_id
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("Alarm should exist in database");
+    let db_alarm = sqlx::query!("SELECT alarm_json FROM alarms WHERE user_id = ?", user_id)
+        .fetch_one(&pool)
+        .await
+        .expect("Alarm should exist in database");
 
     let saved_alarm: Alarm = serde_json::from_str(&db_alarm.alarm_json).unwrap();
     assert_eq!(saved_alarm.name, alarm.name);
