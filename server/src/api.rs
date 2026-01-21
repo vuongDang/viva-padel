@@ -2,8 +2,8 @@ use crate::AppState;
 use crate::auth::AuthUser;
 use crate::models::{Alarm, User};
 use axum::extract::State;
-use axum::routing::{get, post};
 use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
 use axum::{Json, Router, http::StatusCode};
 use chrono::{TimeDelta, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
@@ -70,41 +70,28 @@ pub(crate) async fn health_check() -> &'static str {
 
 #[derive(Deserialize)]
 pub struct RegisterDeviceRequest {
-    pub email: String,
-    pub token: String,
+    pub notif_token: String,
+    pub device_id: String,
 }
 
 pub(crate) async fn register_device(
+    auth: AuthUser,
     State(state): State<AppState>,
     Json(payload): Json<RegisterDeviceRequest>,
 ) -> Result<StatusCode, ApiError> {
-    let user_id = match sqlx::query!("SELECT id FROM users WHERE email = ?", payload.email)
-        .fetch_optional(&state.db)
-        .await
-        .map_err(|e| ApiError::Internal(e.to_string()))?
-    {
-        Some(row) => row.id,
-        None => {
-            let id = Uuid::new_v4();
-            let now = Utc::now();
-            sqlx::query!(
-                "INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)",
-                id,
-                payload.email,
-                now
-            )
-            .execute(&state.db)
-            .await
-            .map_err(|e| ApiError::Internal(e.to_string()))?;
-            id.to_string()
-        }
-    };
+    let user_id = Uuid::parse_str(&auth.user_id)
+        .map_err(|e| ApiError::BadRequest(format!("ID utilisateur invalide: {}", e)))?;
 
-    // 2. Insert or update device
+    // Insert or update device
     sqlx::query!(
-        "INSERT INTO devices (token, user_id, last_seen) VALUES (?, ?, CURRENT_TIMESTAMP)
-         ON CONFLICT(token) DO UPDATE SET user_id = excluded.user_id, last_seen = CURRENT_TIMESTAMP",
-        payload.token,
+        "INSERT INTO devices (device_id, notif_token, user_id, last_seen) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(device_id)
+        DO UPDATE SET
+        user_id = excluded.user_id,
+        last_seen = CURRENT_TIMESTAMP,
+        notif_token = excluded.notif_token",
+        payload.device_id,
+        payload.notif_token,
         user_id
     )
     .execute(&state.db)

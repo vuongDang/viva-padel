@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Create devices table
 CREATE TABLE IF NOT EXISTS devices (
-    token TEXT PRIMARY KEY NOT NULL, -- FCM Token
+    device_id TEXT PRIMARY KEY,
+    notif_token TEXT NOT NULL, -- FCM Token
     user_id TEXT NOT NULL,
     last_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
