@@ -32,14 +32,15 @@ pub struct AppState {
     pub jwt_secret: String,
 }
 
-pub async fn poll_calendar(state: AppState) {
+pub async fn poll_calendar(state: AppState, loop_count: Option<u8>) {
     const MAX_RETRIES: u32 = 3;
     const RETRY_DELAY_SECS: u64 = 5;
     const START_POLLING_TIME: u32 = 7;
     const END_POLLING_TIME: u32 = 23;
+    let mut loop_counter = 0;
     loop {
         let time_now = chrono::Local::now().hour();
-        if (START_POLLING_TIME..END_POLLING_TIME).contains(&time_now) {
+        if loop_count.is_some() || (START_POLLING_TIME..END_POLLING_TIME).contains(&time_now) {
             tracing::info!("Polling calendar");
             for attempt in 1..=MAX_RETRIES {
                 match shared::pull_data_from_garden::get_calendar().await {
@@ -77,15 +78,21 @@ pub async fn poll_calendar(state: AppState) {
         } else {
             tracing::info!("Not the time to poll, let's sleep... zzzZZZzzZZZ");
         }
-        let sleep_duration = if cfg!(feature = "local_dev") {
-            // Use a short interval for local development
-            Duration::from_secs(10)
+
+        loop_counter += 1;
+        if loop_count.is_none() || loop_counter < loop_count.unwrap() {
+            let sleep_duration = if cfg!(feature = "local_dev") {
+                // Use a short interval for local development
+                Duration::from_secs(10)
+            } else {
+                // Use a longer interval for production
+                Duration::from_secs(30 * 60)
+            };
+            tracing::info!("Waiting for {:?} before next poll.", sleep_duration);
+            sleep(sleep_duration).await;
         } else {
-            // Use a longer interval for production
-            Duration::from_secs(30 * 60)
-        };
-        tracing::info!("Waiting for {:?} before next poll.", sleep_duration);
-        sleep(sleep_duration).await;
+            return;
+        }
     }
 }
 
@@ -204,7 +211,12 @@ impl Alarm {
                                 let new_prices = slot
                                     .prices()
                                     .iter()
-                                    .filter(|price| price.bookable())
+                                    .filter(|price| {
+                                        let is_bookable = price.bookable();
+                                        let does_slot_duration_fit =
+                                            self.slot_durations.contains(&price.duration());
+                                        is_bookable && does_slot_duration_fit
+                                    })
                                     .cloned()
                                     .collect();
                                 let new_slot = slot.clone_with_prices(new_prices);
@@ -491,7 +503,7 @@ mod tests {
         assert!(!day.courts()[0].is_indoor(), "Court should be outdoor");
         assert_eq!(day.courts()[0].slots().len(), 1, "Should be one slot");
         assert!(day.courts()[0].slots()[0].start_at().contains("10:00"));
-        assert!(day.courts()[0].slots()[0].prices().len() == 2);
+        assert!(day.courts()[0].slots()[0].prices().len() == 1);
     }
 
     #[test]

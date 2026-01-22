@@ -46,6 +46,25 @@ pub async fn get_calendar() -> Result<Availibilities, Error> {
     Ok(json_to_calendar(NB_DAYS_IN_BATCH))
 }
 
+#[cfg(feature = "local_dev")]
+pub async fn get_simple_calendar(booked: bool) -> Result<Availibilities, Error> {
+    let today = chrono::Local::now().date_naive();
+    let next_3_months = batch_dates(today, 10);
+    let mut calendar = BTreeMap::new();
+    for (_, date) in next_3_months.iter().enumerate() {
+        use testcases::legarden::json_planning_simple_all_booked;
+        use testcases::legarden::json_planning_simple_day;
+        let date_str = date.format(DATE_FORMAT).to_string();
+        let day_planning: DayPlanningResponse = if booked {
+            serde_json::from_str(&json_planning_simple_all_booked()).unwrap()
+        } else {
+            serde_json::from_str(&json_planning_simple_day()).unwrap()
+        };
+        calendar.insert(date_str, day_planning);
+    }
+    Ok(calendar)
+}
+
 #[cfg(not(feature = "local_dev"))]
 pub async fn get_calendar() -> Result<Availibilities, Error> {
     let today = chrono::Local::now().date_naive();

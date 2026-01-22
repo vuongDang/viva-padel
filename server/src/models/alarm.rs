@@ -16,6 +16,7 @@ pub struct Alarm {
     pub court_type: CourtType,
     pub weeks_ahead: u32,
     pub is_active: bool,
+    pub slot_durations: Vec<usize>,
 }
 
 impl Default for Alarm {
@@ -38,6 +39,7 @@ impl Default for Alarm {
             court_type: CourtType::Both,
             weeks_ahead: 1,
             is_active: true,
+            slot_durations: vec![5400, 7200],
         }
     }
 }

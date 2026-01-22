@@ -27,7 +27,7 @@
                   "pricePerParticipant": 600,
                   "participantCount": 4,
                   "instalmentAmount": null,
-                  "bookable": true
+                  "bookable": false
                 },
                 {
                   "id": "9d44967d-52e7-4f58-8b53-e69831fe7509",
@@ -35,7 +35,7 @@
                   "pricePerParticipant": 1200,
                   "participantCount": 4,
                   "instalmentAmount": null,
-                  "bookable": true
+                  "bookable": false
                 },
                 {
                   "id": "be74ad9b-6714-4fe4-bc1a-23ec54d4be59",

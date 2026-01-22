@@ -265,6 +265,27 @@ pub(crate) async fn test_notification(
     State(_state): State<AppState>,
     Json(payload): Json<TestNotifRequest>,
 ) -> Result<StatusCode, ApiError> {
+    use std::collections::BTreeMap;
+    use std::collections::HashMap;
+
+    use chrono::Datelike;
+    use chrono::Duration;
+    use shared::DATE_FORMAT;
+
+    let today = chrono::Local::now().date_naive();
+    let monday_next_week =
+        today + Duration::days((7 - today.weekday().num_days_from_monday() as i64) % 7);
+    let today = today.format(DATE_FORMAT).to_string();
+    let monday_next_week = monday_next_week.format(DATE_FORMAT).to_string();
+
+    let simple_day = shared::models::DayPlanningResponse::simple_day();
+    let mut avail = BTreeMap::new();
+    avail.insert(today, simple_day.clone());
+    avail.insert(monday_next_week, simple_day);
+
+    let mut final_avail = HashMap::new();
+    final_avail.insert("Mon alarme préférée".to_owned(), avail);
+    let data = Some(serde_json::json!({ "availabilities": final_avail}));
     let title = payload.title.as_deref().unwrap_or("Test Notification 🎾");
     let message = payload
         .message
@@ -272,7 +293,7 @@ pub(crate) async fn test_notification(
         .unwrap_or("Ceci est un test de Viva Padel !");
 
     if let Err(e) =
-        crate::send_push_notification(&[payload.device_token], title, message, None).await
+        crate::send_push_notification(&[payload.device_token], title, message, data).await
     {
         return Err(ApiError::Internal(e));
     }

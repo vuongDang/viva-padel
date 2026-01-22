@@ -1,8 +1,8 @@
+use sqlx::sqlite::SqlitePool;
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
-use sqlx::sqlite::SqlitePool;
-use viva_padel_server::{api::create_router, AppState, Calendar, poll_calendar};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use viva_padel_server::{AppState, Calendar, api::create_router, poll_calendar};
 
 #[tokio::main]
 async fn main() {
@@ -32,7 +32,7 @@ async fn main() {
     // Poll LeGarden server to get courts availabilities
     let poll_state = state.clone();
     tokio::spawn(async move {
-        poll_calendar(poll_state).await;
+        poll_calendar(poll_state, None).await;
     });
 
     let app = create_router(state);

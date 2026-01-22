@@ -29,6 +29,12 @@ pub fn json_planning_simple_day() -> String {
     std::fs::read_to_string(path).expect("Error while getting data")
 }
 
+pub fn json_planning_simple_all_booked() -> String {
+    let mut path = path_to_legarden_mock_data();
+    path.push("simple_day_all_booked.json");
+    std::fs::read_to_string(path).expect("Error while getting data")
+}
+
 // If PADEL_MOCK_DATA is set, pick the path from it else
 fn path_to_legarden_mock_data() -> PathBuf {
     const PATH: [&'static str; 4] = ["crates", "testcases", "data", "legarden_server"];
