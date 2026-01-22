@@ -145,6 +145,9 @@ pub async fn notify_users_for_freed_courts(
         })
         .collect();
 
+    if !avail_filtered_with_alarms.is_empty() {
+        send_notifications_to_users(state.clone(), &avail_filtered_with_alarms).await;
+    }
     avail_filtered_with_alarms
 }
 
@@ -225,6 +228,95 @@ impl Alarm {
                 }
             })
             .collect()
+    }
+}
+
+pub(crate) async fn send_push_notification(
+    tokens: &[String],
+    title: &str,
+    body: &str,
+    data: Option<serde_json::Value>,
+) -> Result<(), String> {
+    if tokens.is_empty() {
+        return Ok(());
+    }
+
+    let client = reqwest::Client::new();
+    let mut payload_map = serde_json::json!({
+        "to": tokens,
+        "title": title,
+        "body": body,
+        "sound": "default",
+    });
+
+    if let Some(d) = data {
+        payload_map
+            .as_object_mut()
+            .unwrap()
+            .insert("data".to_string(), d);
+    }
+
+    match client
+        .post("https://exp.host/--/api/v2/push/send")
+        .json(&payload_map)
+        .send()
+        .await
+    {
+        Ok(resp) => {
+            if !resp.status().is_success() {
+                let text = resp.text().await.unwrap_or_default();
+                Err(format!("Expo API error: {}", text))
+            } else {
+                Ok(())
+            }
+        }
+        Err(e) => Err(format!("Network error: {}", e)),
+    }
+}
+
+pub(crate) async fn send_notifications_to_users(
+    state: AppState,
+    avail_filtered_with_alarms: &HashMap<Uuid, HashMap<String, Availibilities>>,
+) {
+    for (user_id, triggers) in avail_filtered_with_alarms {
+        // 1. Get tokens for this user
+        let tokens = match sqlx::query!(
+            r#"SELECT notif_token FROM devices WHERE user_id = ?"#,
+            user_id
+        )
+        .fetch_all(&state.db)
+        .await
+        {
+            Ok(rows) => rows.into_iter().map(|r| r.notif_token).collect::<Vec<_>>(),
+            Err(e) => {
+                tracing::error!("Failed to fetch tokens for user {}: {}", user_id, e);
+                continue;
+            }
+        };
+
+        if tokens.is_empty() {
+            tracing::info!(
+                "No registered devices for user {}, skipping notification",
+                user_id
+            );
+            continue;
+        }
+
+        // 2. Build the message
+        let alarm_names: Vec<String> = triggers.keys().cloned().collect();
+        let title = "Courts libérés ! 🎾";
+        let body = format!(
+            "Bonne nouvelle ! Vos alertes ({}) ont trouvé des terrains disponibles.",
+            alarm_names.join(", ")
+        );
+
+        // 3. Send
+        let data = Some(serde_json::json!({ "user_id": user_id, "alarms": alarm_names }));
+        if let Err(e) = send_push_notification(&tokens, title, &body, data).await {
+            tracing::error!("Failed to send notification to user {}: {}", user_id, e);
+        } else {
+            tracing::info!("Notification sent successfully to user {}", user_id);
+        }
     }
 }
 

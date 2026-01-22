@@ -43,7 +43,7 @@ impl IntoResponse for ApiError {
 }
 
 pub fn create_router(state: AppState) -> Router {
-    let api_router = Router::new()
+    let mut api_router = Router::new()
         .route("/calendar", get(get_calendar))
         .route("/health", get(health_check))
         .route("/signup", post(signup))
@@ -51,6 +51,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/register-device", post(register_device))
         .route("/alarms", post(update_alarms))
         .route("/user", get(get_user));
+
+    if cfg!(feature = "local_dev") {
+        api_router = api_router.route("/test-notification", get(test_notification))
+    }
 
     Router::new()
         .nest("/viva-padel", api_router)
@@ -246,4 +250,32 @@ pub(crate) async fn login(
     .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     Ok((StatusCode::OK, Json(LoginResponse { token })))
+}
+
+#[cfg(feature = "local_dev")]
+#[derive(Deserialize)]
+pub struct TestNotifRequest {
+    pub device_token: String,
+    pub title: Option<String>,
+    pub message: Option<String>,
+}
+
+#[cfg(feature = "local_dev")]
+pub(crate) async fn test_notification(
+    State(_state): State<AppState>,
+    Json(payload): Json<TestNotifRequest>,
+) -> Result<StatusCode, ApiError> {
+    let title = payload.title.as_deref().unwrap_or("Test Notification 🎾");
+    let message = payload
+        .message
+        .as_deref()
+        .unwrap_or("Ceci est un test de Viva Padel !");
+
+    if let Err(e) =
+        crate::send_push_notification(&[payload.device_token], title, message, None).await
+    {
+        return Err(ApiError::Internal(e));
+    }
+
+    Ok(StatusCode::OK)
 }
