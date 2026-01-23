@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use viva_padel_server::{AppState, Calendar, api::create_router, poll_calendar};
+use viva_padel_server::{AppState, Calendar, api::create_router, run};
 
 #[tokio::main]
 async fn main() {
@@ -24,14 +24,14 @@ async fn main() {
 
     #[cfg(feature = "local_dev")]
     let db = Arc::new(
-        viva_padel_server::mock::InMemoryDB::new()
+        viva_padel_server::mock::MockDB::new()
             .await
             .expect("Failed to setup database"),
     );
     #[cfg(feature = "local_dev")]
-    let legarden = Arc::new(viva_padel_server::mock::LocalGardenServer);
+    let legarden = Arc::new(viva_padel_server::mock::MockLeGardenService::default());
     #[cfg(feature = "local_dev")]
-    let notifications = Arc::new(viva_padel_server::mock::TestNotificationsService);
+    let notifications = Arc::new(viva_padel_server::mock::MockNotificationsService::default());
 
     let state = AppState {
         calendar: Arc::new(RwLock::new(Calendar::default())),
@@ -44,7 +44,7 @@ async fn main() {
     // Poll LeGarden server to get courts availabilities
     let poll_state = state.clone();
     tokio::spawn(async move {
-        poll_calendar(poll_state, None).await;
+        run(poll_state).await;
     });
 
     let app = create_router(state);

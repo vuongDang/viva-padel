@@ -3,7 +3,7 @@
 use std::{collections::BTreeMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
-pub type Availibilities = BTreeMap<String, DayPlanningResponse>;
+pub type Availabilities = BTreeMap<String, DayPlanningResponse>;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]

@@ -1,24 +1,28 @@
+use tokio::sync::Mutex;
+
 use async_trait::async_trait;
+use serde_json::Value;
 
-use crate::services::NotificationsService;
+use crate::services::{NotificationsService, notifications::notification_request_payload};
 
-pub struct TestNotificationsService;
+#[derive(Default)]
+pub struct MockNotificationsService {
+    pub notifications: Mutex<Vec<Value>>,
+}
 
 #[async_trait]
-impl NotificationsService for TestNotificationsService {
+impl NotificationsService for MockNotificationsService {
     async fn send_notification(
         &self,
         tokens: &[String],
         title: &str,
         body: &str,
-        _data: Option<serde_json::Value>,
+        data: Option<serde_json::Value>,
     ) -> Result<(), String> {
-        tracing::info!(
-            "MOCK NOTIFICATION: to={:?}, title={}, body={}",
-            tokens,
-            title,
-            body
-        );
+        dbg!(&data);
+        let notification = notification_request_payload(tokens, title, body, data);
+        tracing::info!("MOCK notifications: {:?}", &notification);
+        self.notifications.lock().await.push(notification);
         Ok(())
     }
 }

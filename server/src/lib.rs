@@ -6,7 +6,7 @@ pub mod mock;
 pub mod models;
 pub mod services;
 
-use crate::models::legarden::{Availibilities, DayPlanningResponse, PadelCourtResponse, Slot};
+use crate::models::legarden::{Availabilities, DayPlanningResponse, PadelCourtResponse, Slot};
 use chrono::Timelike;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -23,7 +23,7 @@ use crate::services::{DataBaseService, LeGardenService, NotificationsService};
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Calendar {
     pub timestamp: i64,
-    pub availabilities: Availibilities,
+    pub availabilities: Availabilities,
 }
 
 #[derive(Clone)]
@@ -40,15 +40,12 @@ pub struct AppState {
     pub jwt_secret: String,
 }
 
-pub async fn poll_calendar(state: AppState, loop_count: Option<u8>) {
+pub async fn run(state: AppState) {
     const MAX_RETRIES: u32 = 3;
     const RETRY_DELAY_SECS: u64 = 5;
-    const START_POLLING_TIME: u32 = 7;
-    const END_POLLING_TIME: u32 = 23;
-    let mut loop_counter = 0;
     loop {
         let time_now = chrono::Local::now().hour();
-        if (START_POLLING_TIME..END_POLLING_TIME).contains(&time_now) {
+        if state.legarden.polling_time().contains(&time_now) {
             tracing::info!("Polling calendar");
             for attempt in 1..=MAX_RETRIES {
                 match state.legarden.get_calendar().await {
@@ -87,29 +84,23 @@ pub async fn poll_calendar(state: AppState, loop_count: Option<u8>) {
             tracing::info!("Not the time to poll, let's sleep... zzzZZZzzZZZ");
         }
 
-        loop_counter += 1;
-        if loop_count.is_none() || loop_counter < loop_count.unwrap() {
-            let sleep_duration = if cfg!(feature = "local_dev") {
-                // Use a short interval for local development
-                Duration::from_secs(10)
-            } else {
-                // Use a longer interval for production
-                Duration::from_secs(30 * 60)
-            };
-            tracing::info!("Waiting for {:?} before next poll.", sleep_duration);
-            sleep(sleep_duration).await;
-        } else {
-            return;
-        }
+        let sleep_duration = state.legarden.polling_interval();
+        tracing::info!("Waiting for {:?} before next poll.", sleep_duration);
+        sleep(sleep_duration).await;
     }
 }
 
 pub async fn notify_users_for_freed_courts(
     state: AppState,
-    new: Availibilities,
-    old: Availibilities,
-) -> HashMap<Uuid, HashMap<String, Availibilities>> {
+    new: Availabilities,
+    old: Availabilities,
+) -> HashMap<Uuid, HashMap<String, Availabilities>> {
     let freed_courts = freed_courts(&new, &old);
+
+    if freed_courts.is_empty() {
+        return HashMap::new();
+    }
+
     let alarms_data = state.db.get_active_alarms().await.unwrap_or_else(|e| {
         tracing::error!("Failed to fetch alarms from the db: {}", e);
         vec![]
@@ -122,7 +113,7 @@ pub async fn notify_users_for_freed_courts(
     }
 
     // For each user and its alarms keep the corresponding availabilities
-    let avail_filtered_with_alarms: HashMap<Uuid, HashMap<String, Availibilities>> = alarms_by_user
+    let avail_filtered_with_alarms: HashMap<Uuid, HashMap<String, Availabilities>> = alarms_by_user
         .into_iter()
         .map(|(user_id, alarms)| {
             let mut avails = HashMap::new();
@@ -143,7 +134,7 @@ pub async fn notify_users_for_freed_courts(
 }
 
 /// Gather courts that got freed between old and new availabilities
-pub fn freed_courts(new: &Availibilities, old: &Availibilities) -> Availibilities {
+pub fn freed_courts(new: &Availabilities, old: &Availabilities) -> Availabilities {
     let mut freed = BTreeMap::new();
     let dates = old.keys().filter(|date| new.contains_key(*date));
     for day_str in dates {
@@ -182,7 +173,7 @@ pub fn freed_courts(new: &Availibilities, old: &Availibilities) -> Availibilitie
 
 pub(crate) async fn send_notifications_to_users(
     state: AppState,
-    avail_filtered_with_alarms: &HashMap<Uuid, HashMap<String, Availibilities>>,
+    avail_filtered_with_alarms: &HashMap<Uuid, HashMap<String, Availabilities>>,
 ) {
     for (user_id, triggers) in avail_filtered_with_alarms {
         // 1. Get tokens for this user
@@ -242,7 +233,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_notify_users_for_freed_courts() {
-        let (_, state) = crate::mock::setup_test_server().await;
+        let (_, state) = crate::mock::default_test_server().await;
         let email = "toto@toto.com";
         let token = "notif_token";
         let device_id = "device";
@@ -336,10 +327,10 @@ mod tests {
 
     #[test]
     fn freed_courts_correct() {
-        let mut old = crate::mock::json_to_calendar(4);
+        let mut old = crate::mock::real_data_availabilities(4);
         let mut new = old.clone();
-        let new_ptr: *const Availibilities = &new as *const Availibilities;
-        let old_ptr: *const Availibilities = &old as *const Availibilities;
+        let new_ptr: *const Availabilities = &new as *const Availabilities;
+        let old_ptr: *const Availabilities = &old as *const Availabilities;
 
         let new_avail = freed_courts(&new, &old);
         assert!(new_avail.is_empty());
@@ -374,7 +365,7 @@ mod tests {
         }
     }
 
-    fn get_available_prices(avail: &Availibilities) -> Vec<Price> {
+    fn get_available_prices(avail: &Availabilities) -> Vec<Price> {
         let mut prices = vec![];
         avail.values().for_each(|day| {
             day.courts().iter().for_each(|court| {

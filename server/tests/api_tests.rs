@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use serde_json::json;
 use viva_padel_server::Calendar;
 use viva_padel_server::mock::*;
@@ -5,7 +7,7 @@ use viva_padel_server::services::legarden::NB_DAYS_IN_BATCH;
 
 #[tokio::test]
 async fn test_health_check() {
-    let (server, _) = setup_test_server().await;
+    let (server, _) = default_test_server().await;
     let response = server.get("/viva-padel/health").await;
     response.assert_status_ok();
     assert_eq!(response.text(), "OK");
@@ -13,7 +15,7 @@ async fn test_health_check() {
 
 #[tokio::test]
 async fn test_signup_and_login() {
-    let (server, state) = setup_test_server().await;
+    let (server, state) = default_test_server().await;
     let email = "test@example.com";
 
     // 1. Signup
@@ -63,7 +65,8 @@ async fn test_signup_and_login() {
 
 #[tokio::test]
 async fn test_get_calendar() {
-    let (server, _) = setup_test_server().await;
+    let (server, _) = default_test_server().await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
     let response = server.get("/viva-padel/calendar").await;
     response.assert_status_ok();
 
@@ -73,7 +76,11 @@ async fn test_get_calendar() {
 
 #[tokio::test]
 async fn test_get_user() {
-    let (server, state) = setup_test_server().await;
+    // tracing_subscriber::registry()
+    //     .with(tracing_subscriber::fmt::layer())
+    //     .init();
+
+    let (server, state) = default_test_server().await;
     let email = "user@example.com";
 
     // Signup
@@ -145,7 +152,7 @@ async fn test_get_user() {
 
 #[tokio::test]
 async fn test_signup_invalid_email() {
-    let (server, _) = setup_test_server().await;
+    let (server, _) = default_test_server().await;
 
     let response = server
         .post("/viva-padel/signup")

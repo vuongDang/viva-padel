@@ -1,13 +1,13 @@
 use chrono::{Datelike, NaiveDate, NaiveTime};
 
 use crate::{
-    models::{Alarm, CourtType, legarden::Availibilities},
+    models::{Alarm, CourtType, legarden::Availabilities},
     services::legarden::{DATE_FORMAT, TIME_FORMAT},
 };
 
 impl Alarm {
     // Filter availabilities depending on the alarm criteria
-    pub fn target_availabilities(&self, avail: Availibilities) -> Availibilities {
+    pub fn target_availabilities(&self, avail: Availabilities) -> Availabilities {
         let today = chrono::Local::now().date_naive();
         let max_date = today + chrono::Duration::weeks(self.weeks_ahead as i64);
 
@@ -105,7 +105,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     // Helper function to create a comprehensive Availabilities map for testing.
-    fn setup_test_availabilities() -> Availibilities {
+    fn setup_test_availabilities() -> Availabilities {
         let today = Local::now().date_naive();
         // Base everything on the next Monday to ensure all dates are in the future
         let monday_next_week =

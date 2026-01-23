@@ -2,18 +2,18 @@ use crate::services::{DataBaseService, database::DBError};
 use async_trait::async_trait;
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 
-pub struct InMemoryDB {
+pub struct MockDB {
     pool: sqlx::SqlitePool,
 }
 
 #[async_trait]
-impl DataBaseService for InMemoryDB {
+impl DataBaseService for MockDB {
     fn get_db_pool(&self) -> &SqlitePool {
         &self.pool
     }
 }
 
-impl InMemoryDB {
+impl MockDB {
     pub async fn new() -> Result<Self, DBError> {
         dotenvy::dotenv().map_err(|e| DBError::Env(e.to_string()))?;
 
@@ -24,6 +24,6 @@ impl InMemoryDB {
             .run(&pool)
             .await
             .map_err(|e| DBError::Sqlx(e.into()))?;
-        Ok(InMemoryDB { pool })
+        Ok(MockDB { pool })
     }
 }

@@ -1,8 +1,9 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ops::Range};
 
-use crate::models::legarden::{Availibilities, DayPlanningResponse};
+use crate::models::legarden::{Availabilities, DayPlanningResponse};
 use async_trait::async_trait;
 use chrono::NaiveDate;
+use std::time::Duration;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -33,14 +34,16 @@ const CLOSING_HOUR: &str = "23:00";
 
 #[async_trait]
 pub trait LeGardenService: Send + Sync {
-    async fn get_calendar(&self) -> Result<Availibilities, LeGardenError>;
+    async fn get_calendar(&self) -> Result<Availabilities, LeGardenError>;
+    fn polling_time(&self) -> Range<u32>;
+    fn polling_interval(&self) -> Duration;
 }
 
 pub struct LeGardenServer;
 
 #[async_trait]
 impl LeGardenService for LeGardenServer {
-    async fn get_calendar(&self) -> Result<Availibilities, LeGardenError> {
+    async fn get_calendar(&self) -> Result<Availabilities, LeGardenError> {
         let today = chrono::Local::now().date_naive();
         let next_3_months = batch_dates(today, NB_DAYS_IN_BATCH);
         let mut calendar = BTreeMap::new();
@@ -50,6 +53,17 @@ impl LeGardenService for LeGardenServer {
             calendar.insert(date_str, day_planning);
         }
         Ok(calendar)
+    }
+
+    fn polling_time(&self) -> Range<u32> {
+        const START_POLLING_TIME: u32 = 7;
+        const END_POLLING_TIME: u32 = 23;
+        START_POLLING_TIME..END_POLLING_TIME
+    }
+
+    // Poll every 30 minutes
+    fn polling_interval(&self) -> Duration {
+        Duration::from_secs(30 * 60)
     }
 }
 

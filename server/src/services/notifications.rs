@@ -1,8 +1,11 @@
+use std::any::Any;
+
 use async_trait::async_trait;
+use serde_json::Value;
 
 const EXPO_PUSH_API_URL: &str = "https://exp.host/--/api/v2/push/send";
 #[async_trait]
-pub trait NotificationsService: Send + Sync {
+pub trait NotificationsService: Send + Sync + Any {
     async fn send_notification(
         &self,
         tokens: &[String],
@@ -28,19 +31,8 @@ impl NotificationsService for ExpoNotificationsService {
         }
 
         let client = reqwest::Client::new();
-        let mut payload_map = serde_json::json!({
-            "to": tokens,
-            "title": title,
-            "body": body,
-            "sound": "default",
-        });
 
-        if let Some(d) = data {
-            payload_map
-                .as_object_mut()
-                .unwrap()
-                .insert("data".to_string(), d);
-        }
+        let payload_map = notification_request_payload(tokens, title, body, data);
 
         match client
             .post(EXPO_PUSH_API_URL)
@@ -59,4 +51,26 @@ impl NotificationsService for ExpoNotificationsService {
             Err(e) => Err(format!("Network error: {}", e)),
         }
     }
+}
+
+pub fn notification_request_payload(
+    tokens: &[String],
+    title: &str,
+    body: &str,
+    data: Option<serde_json::Value>,
+) -> Value {
+    let mut payload_map = serde_json::json!({
+        "to": tokens,
+        "title": title,
+        "body": body,
+        "sound": "default",
+    });
+
+    if let Some(d) = data {
+        payload_map
+            .as_object_mut()
+            .unwrap()
+            .insert("data".to_string(), d);
+    }
+    payload_map
 }
