@@ -1,6 +1,7 @@
 use crate::AppState;
 use crate::auth::AuthUser;
 use crate::models::{Alarm, User};
+use crate::services::database::DBError;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -39,6 +40,18 @@ impl IntoResponse for ApiError {
         };
 
         (status, Json(json!({ "error": message }))).into_response()
+    }
+}
+
+impl From<DBError> for ApiError {
+    fn from(error: DBError) -> Self {
+        match error {
+            DBError::UserNotFound => ApiError::NotFound("Utilisateur non trouvé".into()),
+            DBError::UserAlreadyExists(email) => {
+                ApiError::BadRequest(format!("L'utilisateur {} existe déjà", email))
+            }
+            _ => ApiError::Internal(error.to_string()),
+        }
     }
 }
 
@@ -87,20 +100,10 @@ pub(crate) async fn register_device(
         .map_err(|e| ApiError::BadRequest(format!("ID utilisateur invalide: {}", e)))?;
 
     // Insert or update device
-    sqlx::query!(
-        "INSERT INTO devices (device_id, notif_token, user_id, last_seen) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(device_id)
-        DO UPDATE SET
-        user_id = excluded.user_id,
-        last_seen = CURRENT_TIMESTAMP,
-        notif_token = excluded.notif_token",
-        payload.device_id,
-        payload.notif_token,
-        user_id
-    )
-    .execute(&state.db)
-    .await
-    .map_err(|e| ApiError::Internal(e.to_string()))?;
+    state
+        .db
+        .register_device(&payload.device_id, &payload.notif_token, user_id)
+        .await?;
 
     Ok(StatusCode::OK)
 }
@@ -118,28 +121,8 @@ pub(crate) async fn update_alarms(
     let user_id = Uuid::parse_str(&auth.user_id)
         .map_err(|e| ApiError::BadRequest(format!("Invalid user ID: {}", e)))?;
 
-    // Remove all previous user alarms
-    sqlx::query!("DELETE FROM alarms WHERE user_id = ?", user_id)
-        .execute(&state.db)
-        .await
-        .map_err(|e| ApiError::Internal(e.to_string()))?;
-
-    let now = Utc::now();
-    for alarm in payload.alarms {
-        let alarm_id = Uuid::new_v4();
-        let alarm_json = serde_json::json!(alarm).to_string();
-        sqlx::query!(
-            "INSERT INTO alarms (id, user_id, alarm_json, is_active, created_at) VALUES (?, ?, ?, ?, ?)",
-            alarm_id,
-            user_id,
-            alarm_json,
-            alarm.is_active,
-            now
-        )
-        .execute(&state.db)
-        .await
-        .map_err(|e| ApiError::Internal(e.to_string()))?;
-    }
+    // Update user alarms
+    state.db.update_alarms(user_id, payload.alarms).await?;
 
     Ok(StatusCode::OK)
 }
@@ -157,26 +140,10 @@ pub(crate) async fn get_user(
     let user_id = Uuid::parse_str(&auth.user_id)
         .map_err(|e| ApiError::BadRequest(format!("Invalid user ID: {}", e)))?;
 
-    let user = sqlx::query_as::<_, User>("SELECT * FROM users where id = ?")
-        .bind(user_id)
-        .fetch_one(&state.db)
-        .await
-        .map_err(|e| ApiError::Internal(e.to_string()))?;
+    let user = state.db.get_user_by_id(user_id).await?;
 
     // Fetch alarms
-    let alarms_rows = sqlx::query!("SELECT alarm_json FROM alarms WHERE user_id = ?", user_id)
-        .fetch_all(&state.db)
-        .await
-        .map_err(|e| ApiError::Internal(e.to_string()))?;
-
-    let alarms: Vec<Alarm> = alarms_rows
-        .into_iter()
-        .map(|record| {
-            let alarm_json: String = record.alarm_json;
-            serde_json::from_str::<Alarm>(&alarm_json)
-                .map_err(|e| ApiError::Internal(e.to_string()))
-        })
-        .collect::<Result<Vec<Alarm>, ApiError>>()?;
+    let alarms = state.db.get_user_alarms(user_id).await?;
 
     let response = GetUserResponse { user, alarms };
     Ok(Json(response))
@@ -196,16 +163,7 @@ pub(crate) async fn signup(
         .validate()
         .map_err(|e| ApiError::ValidationError(e.to_string()))?;
 
-    let user = User::new(payload.email);
-    sqlx::query!(
-        "INSERT INTO users (id, email, created_at) VALUES (?, ?,  ?)",
-        user.id,
-        user.email,
-        user.created_at
-    )
-    .execute(&state.db)
-    .await
-    .map_err(|e| ApiError::Internal(e.to_string()))?;
+    let user = state.db.create_user(&payload.email).await?;
 
     Ok((StatusCode::CREATED, Json(user)))
 }
@@ -225,11 +183,7 @@ pub(crate) async fn login(
     Json(payload): Json<LoginRequest>,
 ) -> Result<(StatusCode, Json<LoginResponse>), ApiError> {
     use crate::auth::Claims;
-    let user = sqlx::query_as::<_, User>("SELECT * FROM users where email = ?")
-        .bind(&payload.email)
-        .fetch_one(&state.db)
-        .await
-        .map_err(|_| ApiError::BadRequest(format!("Utilisateur non trouvé: {}", payload.email)))?;
+    let user = state.db.get_user_by_email(&payload.email).await?;
 
     let expiration = Utc::now()
         .checked_add_signed(TimeDelta::days(14))
@@ -262,15 +216,15 @@ pub struct TestNotifRequest {
 
 #[cfg(feature = "local_dev")]
 pub(crate) async fn test_notification(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Json(payload): Json<TestNotifRequest>,
 ) -> Result<StatusCode, ApiError> {
     use std::collections::BTreeMap;
     use std::collections::HashMap;
 
+    use crate::services::legarden::DATE_FORMAT;
     use chrono::Datelike;
     use chrono::Duration;
-    use shared::DATE_FORMAT;
 
     let today = chrono::Local::now().date_naive();
     let monday_next_week =
@@ -278,7 +232,7 @@ pub(crate) async fn test_notification(
     let today = today.format(DATE_FORMAT).to_string();
     let monday_next_week = monday_next_week.format(DATE_FORMAT).to_string();
 
-    let simple_day = shared::models::DayPlanningResponse::simple_day();
+    let simple_day = crate::models::legarden::DayPlanningResponse::simple_day();
     let mut avail = BTreeMap::new();
     avail.insert(today, simple_day.clone());
     avail.insert(monday_next_week, simple_day);
@@ -292,8 +246,10 @@ pub(crate) async fn test_notification(
         .as_deref()
         .unwrap_or("Ceci est un test de Viva Padel !");
 
-    if let Err(e) =
-        crate::send_push_notification(&[payload.device_token], title, message, data).await
+    if let Err(e) = state
+        .notifications
+        .send_notification(&[payload.device_token], title, message, data)
+        .await
     {
         return Err(ApiError::Internal(e));
     }

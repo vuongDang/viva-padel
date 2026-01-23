@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use uuid::Uuid;
@@ -7,7 +7,7 @@ use uuid::Uuid;
 pub struct User {
     pub id: Uuid,
     pub email: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: i64,
 }
 
 impl User {
@@ -15,7 +15,7 @@ impl User {
         User {
             id: uuid::Uuid::new_v4(),
             email,
-            created_at: Utc::now(),
+            created_at: Utc::now().timestamp(),
         }
     }
 }

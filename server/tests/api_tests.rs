@@ -1,37 +1,7 @@
-use axum_test::TestServer;
 use serde_json::json;
-use sqlx::sqlite::SqlitePool;
-use std::sync::{Arc, RwLock};
-use viva_padel_server::{AppState, Calendar, api::create_router};
-
-const JWT_SECRET_KEY: &str = "secret_key_for_testing";
-async fn setup_test_server() -> (TestServer, SqlitePool) {
-    // Setup in-memory database for testing
-    let pool = SqlitePool::connect("sqlite::memory:")
-        .await
-        .expect("Failed to connect to in-memory database");
-
-    // Run migrations
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .expect("Failed to run migrations");
-
-    let state = AppState {
-        calendar: Arc::new(RwLock::new(Calendar {
-            timestamp: 0,
-            availabilities: shared::pull_data_from_garden::json_to_calendar(
-                shared::pull_data_from_garden::NB_DAYS_IN_BATCH,
-            ),
-        })),
-        db: pool.clone(),
-        jwt_secret: JWT_SECRET_KEY.to_string(),
-    };
-
-    let app = create_router(state);
-    let server = TestServer::new(app.into_make_service()).expect("Failed to create test server");
-    (server, pool)
-}
+use viva_padel_server::Calendar;
+use viva_padel_server::mock::*;
+use viva_padel_server::services::legarden::NB_DAYS_IN_BATCH;
 
 #[tokio::test]
 async fn test_health_check() {
@@ -43,7 +13,7 @@ async fn test_health_check() {
 
 #[tokio::test]
 async fn test_signup_and_login() {
-    let (server, pool) = setup_test_server().await;
+    let (server, state) = setup_test_server().await;
     let email = "test@example.com";
 
     // 1. Signup
@@ -58,7 +28,7 @@ async fn test_signup_and_login() {
 
     // Verify in database
     let db_user = sqlx::query!("SELECT email FROM users WHERE email = ?", email)
-        .fetch_one(&pool)
+        .fetch_one(state.db.get_db_pool())
         .await
         .expect("User should exist in database");
     assert_eq!(db_user.email, email);
@@ -98,13 +68,12 @@ async fn test_get_calendar() {
     response.assert_status_ok();
 
     let cal: Calendar = serde_json::from_value(response.json()).unwrap();
-    assert_eq!(cal.timestamp, 0);
-    assert_eq!(cal.availabilities.len(), 90);
+    assert_eq!(cal.availabilities.len(), NB_DAYS_IN_BATCH as usize);
 }
 
 #[tokio::test]
 async fn test_get_user() {
-    let (server, pool) = setup_test_server().await;
+    let (server, state) = setup_test_server().await;
     let email = "user@example.com";
 
     // Signup
@@ -166,7 +135,7 @@ async fn test_get_user() {
     // 4. Verify in database directly
     let user_id = uuid::Uuid::parse_str(&response.user.id.to_string()).unwrap();
     let db_alarm = sqlx::query!("SELECT alarm_json FROM alarms WHERE user_id = ?", user_id)
-        .fetch_one(&pool)
+        .fetch_one(state.db.get_db_pool())
         .await
         .expect("Alarm should exist in database");
 

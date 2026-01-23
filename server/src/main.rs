@@ -1,4 +1,3 @@
-use sqlx::sqlite::SqlitePool;
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -10,22 +9,35 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    dotenvy::dotenv().expect("Failed to load .env file");
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = SqlitePool::connect(&database_url)
-        .await
-        .expect("Failed to connect to the database");
-
-    // Run migrations
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .expect("Failed to run database migrations");
-
     let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+
+    #[cfg(not(feature = "local_dev"))]
+    let db = Arc::new(
+        viva_padel_server::services::SQLiteDB::new()
+            .await
+            .expect("Failed to setup database"),
+    );
+    #[cfg(not(feature = "local_dev"))]
+    let legarden = Arc::new(viva_padel_server::services::LeGardenService);
+    #[cfg(not(feature = "local_dev"))]
+    let notifications = Arc::new(viva_padel_server::services::ExpoNotificationsService);
+
+    #[cfg(feature = "local_dev")]
+    let db = Arc::new(
+        viva_padel_server::mock::InMemoryDB::new()
+            .await
+            .expect("Failed to setup database"),
+    );
+    #[cfg(feature = "local_dev")]
+    let legarden = Arc::new(viva_padel_server::mock::LocalGardenServer);
+    #[cfg(feature = "local_dev")]
+    let notifications = Arc::new(viva_padel_server::mock::TestNotificationsService);
+
     let state = AppState {
         calendar: Arc::new(RwLock::new(Calendar::default())),
-        db: pool,
+        db,
+        legarden,
+        notifications,
         jwt_secret,
     };
 

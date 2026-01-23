@@ -22,7 +22,7 @@ pub struct Alarm {
 impl Default for Alarm {
     fn default() -> Self {
         Self {
-            name: "New Alarm".to_string(),
+            name: "Default Alarm".to_string(),
             days_of_the_week: vec![
                 Weekday::Mon,
                 Weekday::Tue,
@@ -33,13 +33,13 @@ impl Default for Alarm {
                 Weekday::Sun,
             ],
             time_range: (
-                NaiveTime::from_hms_opt(9, 0, 0).unwrap(),
-                NaiveTime::from_hms_opt(22, 0, 0).unwrap(),
+                NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
+                NaiveTime::from_hms_opt(23, 59, 59).unwrap(),
             ),
             court_type: CourtType::Both,
             weeks_ahead: 1,
             is_active: true,
-            slot_durations: vec![5400, 7200],
+            slot_durations: vec![3600, 5400, 7200],
         }
     }
 }

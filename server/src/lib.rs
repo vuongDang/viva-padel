@@ -1,20 +1,24 @@
+mod alarm_logic;
 pub mod api;
 pub mod auth;
+#[cfg(feature = "local_dev")]
+pub mod mock;
 pub mod models;
+pub mod services;
 
-use chrono::{Datelike, NaiveDate, NaiveTime, Timelike};
+use crate::models::legarden::{Availibilities, DayPlanningResponse, PadelCourtResponse, Slot};
+use chrono::Timelike;
 use serde::{Deserialize, Serialize};
-use shared::{TIME_FORMAT, models::Availibilities};
-use sqlx::sqlite::SqlitePool;
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     sync::{Arc, RwLock},
     time::Duration,
 };
 use tokio::time::sleep;
 use uuid::Uuid;
 
-use crate::models::{Alarm, CourtType};
+use crate::models::Alarm;
+use crate::services::{DataBaseService, LeGardenService, NotificationsService};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Calendar {
@@ -26,8 +30,12 @@ pub struct Calendar {
 pub struct AppState {
     /// A calendar containing LeGarden availabilities
     pub calendar: Arc<RwLock<Calendar>>,
-    /// SQLite database pool
-    pub db: SqlitePool,
+    /// Database service
+    pub db: Arc<dyn DataBaseService>,
+    /// LeGarden service
+    pub legarden: Arc<dyn LeGardenService>,
+    /// Notifications service
+    pub notifications: Arc<dyn NotificationsService>,
     /// Secret key for JWT signing/verification
     pub jwt_secret: String,
 }
@@ -40,10 +48,10 @@ pub async fn poll_calendar(state: AppState, loop_count: Option<u8>) {
     let mut loop_counter = 0;
     loop {
         let time_now = chrono::Local::now().hour();
-        if loop_count.is_some() || (START_POLLING_TIME..END_POLLING_TIME).contains(&time_now) {
+        if (START_POLLING_TIME..END_POLLING_TIME).contains(&time_now) {
             tracing::info!("Polling calendar");
             for attempt in 1..=MAX_RETRIES {
-                match shared::pull_data_from_garden::get_calendar().await {
+                match state.legarden.get_calendar().await {
                     Ok(availabilities) => {
                         let timestamp = chrono::Local::now().timestamp();
                         let mut cal = state.calendar.write().expect("Failed to get mut guard");
@@ -52,7 +60,7 @@ pub async fn poll_calendar(state: AppState, loop_count: Option<u8>) {
                         let old = cal.availabilities.clone();
                         let state_clone = state.clone();
                         tokio::spawn(async move {
-                            notify_users_for_freed_courts(state_clone, new, old)
+                            notify_users_for_freed_courts(state_clone, new, old).await
                         });
 
                         cal.availabilities = availabilities;
@@ -101,44 +109,20 @@ pub async fn notify_users_for_freed_courts(
     new: Availibilities,
     old: Availibilities,
 ) -> HashMap<Uuid, HashMap<String, Availibilities>> {
-    let freed_courts = shared::pull_data_from_garden::freed_courts(&new, &old);
-    let rows = sqlx::query!(
-        r#"
-            SELECT user_id as "user_id: Uuid", alarm_json
-            FROM alarms
-            WHERE is_active is TRUE
-        "#,
-    )
-    .fetch_all(&state.db)
-    .await
-    .unwrap_or_else(|e| {
+    let freed_courts = freed_courts(&new, &old);
+    let alarms_data = state.db.get_active_alarms().await.unwrap_or_else(|e| {
         tracing::error!("Failed to fetch alarms from the db: {}", e);
         vec![]
     });
 
-    // Keep only correctly formatted and active alarm and organized per user
-    let mut alarms: HashMap<Uuid, Vec<Alarm>> = HashMap::new();
-    rows.into_iter()
-        .filter_map(|row| {
-            let alarm: Alarm = serde_json::from_str(&row.alarm_json)
-                .map_err(|e| tracing::error!("Failed to parse alarm json: {}", e))
-                .ok()?;
-
-            if !alarm.is_active {
-                return None;
-            }
-
-            Some((row.user_id, alarm))
-        })
-        .for_each(|(user_id, alarm)| {
-            alarms
-                .entry(user_id)
-                .and_modify(|prev_alarms| prev_alarms.push(alarm.clone()))
-                .or_insert(vec![alarm]);
-        });
+    // Group alarms by user
+    let mut alarms_by_user: HashMap<Uuid, Vec<Alarm>> = HashMap::new();
+    for (user_id, alarm) in alarms_data {
+        alarms_by_user.entry(user_id).or_default().push(alarm);
+    }
 
     // For each user and its alarms keep the corresponding availabilities
-    let avail_filtered_with_alarms: HashMap<Uuid, HashMap<String, Availibilities>> = alarms
+    let avail_filtered_with_alarms: HashMap<Uuid, HashMap<String, Availibilities>> = alarms_by_user
         .into_iter()
         .map(|(user_id, alarms)| {
             let mut avails = HashMap::new();
@@ -158,132 +142,42 @@ pub async fn notify_users_for_freed_courts(
     avail_filtered_with_alarms
 }
 
-impl Alarm {
-    // Filter availabilities depending on the alarm criteria
-    fn target_availabilities(&self, avail: Availibilities) -> Availibilities {
-        let today = chrono::Local::now().date_naive();
-        let max_date = today + chrono::Duration::weeks(self.weeks_ahead as i64);
-
-        avail
-            .into_iter()
-            .filter_map(|(key, day_planning)| {
-                // Keep the availabilities which dates are within the alarm week_ahead and match weekday
-                let date = match NaiveDate::parse_from_str(&key, shared::DATE_FORMAT) {
-                    Ok(d) => d,
-                    Err(_) => return None, // If date is invalid, discard this day
-                };
-
-                if !(date >= today && date <= max_date) {
-                    return None; // Not within the weeks_ahead range
-                }
-
-                if !self.days_of_the_week.contains(&date.weekday()) {
-                    return None; // Doesn't match alarm's weekdays
-                }
-
-                // Filter courts within the day_planning
-                let filtered_courts = day_planning
-                    .courts()
-                    .iter()
-                    .filter_map(|court| {
-                        // Keep the availabilities which court type match the alarm court_type
-                        let court_type_matches = match self.court_type {
-                            CourtType::Indoor => court.is_indoor(),
-                            CourtType::Outdoor => !court.is_indoor(),
-                            CourtType::Both => true,
-                        };
-
-                        if !court_type_matches {
-                            return None;
+/// Gather courts that got freed between old and new availabilities
+pub fn freed_courts(new: &Availibilities, old: &Availibilities) -> Availibilities {
+    let mut freed = BTreeMap::new();
+    let dates = old.keys().filter(|date| new.contains_key(*date));
+    for day_str in dates {
+        if let Some(new_day) = new.get(day_str) {
+            let old_day = old.get(day_str).unwrap();
+            let mut courts = vec![];
+            for (old_court, new_court) in old_day.courts().iter().zip(new_day.courts().iter()) {
+                let mut slots = vec![];
+                for (old_slot, new_slot) in old_court.slots().iter().zip(new_court.slots().iter()) {
+                    let mut prices = vec![];
+                    for (old_price, new_price) in
+                        old_slot.prices().iter().zip(new_slot.prices().iter())
+                    {
+                        if !old_price.bookable() && new_price.bookable() {
+                            prices.push(new_price.clone());
                         }
-
-                        // Filter slots within the court
-                        let filtered_slots = court
-                            .slots()
-                            .iter()
-                            .filter_map(|slot| {
-                                // Keep the availabilities which start time are within the time_range of the alarm
-                                let start_time =
-                                    NaiveTime::parse_from_str(slot.start_at(), TIME_FORMAT)
-                                        .unwrap();
-                                let is_within_time_range = start_time >= self.time_range.0
-                                    && start_time < self.time_range.1;
-                                let new_prices = slot
-                                    .prices()
-                                    .iter()
-                                    .filter(|price| {
-                                        let is_bookable = price.bookable();
-                                        let does_slot_duration_fit =
-                                            self.slot_durations.contains(&price.duration());
-                                        is_bookable && does_slot_duration_fit
-                                    })
-                                    .cloned()
-                                    .collect();
-                                let new_slot = slot.clone_with_prices(new_prices);
-                                (is_within_time_range && !new_slot.prices().is_empty())
-                                    .then_some(new_slot)
-                            })
-                            .collect::<Vec<_>>();
-
-                        if filtered_slots.is_empty() {
-                            None
-                        } else {
-                            Some(court.clone_with(filtered_slots))
-                        }
-                    })
-                    .collect::<Vec<_>>();
-
-                if filtered_courts.is_empty() {
-                    None
-                } else {
-                    Some((key, day_planning.new_with(filtered_courts)))
+                    }
+                    if !prices.is_empty() {
+                        slots.push(Slot::clone_with_prices(new_slot, prices));
+                    }
                 }
-            })
-            .collect()
-    }
-}
-
-pub(crate) async fn send_push_notification(
-    tokens: &[String],
-    title: &str,
-    body: &str,
-    data: Option<serde_json::Value>,
-) -> Result<(), String> {
-    if tokens.is_empty() {
-        return Ok(());
-    }
-
-    let client = reqwest::Client::new();
-    let mut payload_map = serde_json::json!({
-        "to": tokens,
-        "title": title,
-        "body": body,
-        "sound": "default",
-    });
-
-    if let Some(d) = data {
-        payload_map
-            .as_object_mut()
-            .unwrap()
-            .insert("data".to_string(), d);
-    }
-
-    match client
-        .post("https://exp.host/--/api/v2/push/send")
-        .json(&payload_map)
-        .send()
-        .await
-    {
-        Ok(resp) => {
-            if !resp.status().is_success() {
-                let text = resp.text().await.unwrap_or_default();
-                Err(format!("Expo API error: {}", text))
-            } else {
-                Ok(())
+                if !slots.is_empty() {
+                    courts.push(PadelCourtResponse::clone_with(new_court, slots));
+                }
+            }
+            if !courts.is_empty() {
+                freed.insert(
+                    day_str.to_owned(),
+                    DayPlanningResponse::new_with(new_day, courts),
+                );
             }
         }
-        Err(e) => Err(format!("Network error: {}", e)),
     }
+    freed
 }
 
 pub(crate) async fn send_notifications_to_users(
@@ -292,14 +186,8 @@ pub(crate) async fn send_notifications_to_users(
 ) {
     for (user_id, triggers) in avail_filtered_with_alarms {
         // 1. Get tokens for this user
-        let tokens = match sqlx::query!(
-            r#"SELECT notif_token FROM devices WHERE user_id = ?"#,
-            user_id
-        )
-        .fetch_all(&state.db)
-        .await
-        {
-            Ok(rows) => rows.into_iter().map(|r| r.notif_token).collect::<Vec<_>>(),
+        let tokens = match state.db.get_tokens_for_user(*user_id).await {
+            Ok(tokens) => tokens,
             Err(e) => {
                 tracing::error!("Failed to fetch tokens for user {}: {}", user_id, e);
                 continue;
@@ -324,7 +212,11 @@ pub(crate) async fn send_notifications_to_users(
 
         // 3. Send
         let data = Some(serde_json::json!({ "user_id": user_id, "alarms": alarm_names }));
-        if let Err(e) = send_push_notification(&tokens, title, &body, data).await {
+        if let Err(e) = state
+            .notifications
+            .send_notification(&tokens, title, &body, data)
+            .await
+        {
             tracing::error!("Failed to send notification to user {}: {}", user_id, e);
         } else {
             tracing::info!("Notification sent successfully to user {}", user_id);
@@ -334,221 +226,35 @@ pub(crate) async fn send_notifications_to_users(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use chrono::{Datelike, Duration, Local, NaiveTime, Weekday};
-    use shared::models::DayPlanningResponse;
-    use shared::{DATE_FORMAT, models::Slot};
     use std::collections::BTreeMap;
 
-    // Helper function to create a comprehensive Availabilities map for testing.
-    fn setup_test_availabilities() -> Availibilities {
-        let today = Local::now().date_naive();
-        // Base everything on the next Monday to ensure all dates are in the future
-        let monday_next_week =
-            today + Duration::days((7 - today.weekday().num_days_from_monday() as i64) % 7);
-        let tuesday_next_week = monday_next_week + Duration::days(1);
-        let monday_in_2_weeks = monday_next_week + Duration::weeks(1);
-        let monday_in_5_weeks = monday_next_week + Duration::weeks(4);
+    use chrono::{Local, NaiveTime};
 
-        let dates = [
-            today.format(DATE_FORMAT).to_string(),
-            monday_next_week.format(DATE_FORMAT).to_string(),
-            tuesday_next_week.format(DATE_FORMAT).to_string(),
-            monday_in_2_weeks.format(DATE_FORMAT).to_string(),
-            monday_in_5_weeks.format(DATE_FORMAT).to_string(),
-        ];
+    use crate::{
+        models::{
+            CourtType,
+            legarden::{DayPlanningResponse, Price},
+        },
+        services::legarden::DATE_FORMAT,
+    };
 
-        let simple_day = DayPlanningResponse::simple_day();
-        let mut avail = BTreeMap::new();
-        for (i, date) in dates.into_iter().enumerate() {
-            let mut day = simple_day.clone();
-            // make one court at the 14:00 time slot
-            if i == 1 {
-                let slots = day.courts_mut().first_mut().unwrap().slots_mut();
-                let new_slot =
-                    Slot::clone_with_start_at(slots.first().unwrap(), "14:00".to_owned());
-                slots.push(new_slot);
-            }
-            // Make one court outside
-            if i == 3 {
-                day.courts_mut().first_mut().unwrap().set_indoor(false);
-            }
-            avail.insert(date, day);
-        }
-        avail
-    }
-
-    #[test]
-    fn test_filter_by_weekday() {
-        let avail = setup_test_availabilities();
-        let alarm = Alarm {
-            days_of_the_week: vec![Weekday::Tue],
-            weeks_ahead: 5, // Set high to not interfere
-            ..Default::default()
-        };
-
-        let mut result = alarm.target_availabilities(avail);
-        assert_eq!(
-            result.len(),
-            1,
-            "Should only find availabilities for Tuesday"
-        );
-
-        let (date, _) = result.pop_first().unwrap();
-        let weekday = NaiveDate::parse_from_str(&date, DATE_FORMAT)
-            .unwrap()
-            .weekday();
-        assert_eq!(
-            weekday,
-            Weekday::Tue,
-            "The resulting key should be the Tuesday date"
-        );
-    }
-
-    #[test]
-    fn test_filter_by_weeks_ahead() {
-        let avail = setup_test_availabilities();
-        // Alarm for the next 2 weeks (includes this week and next week)
-        let alarm = Alarm {
-            weeks_ahead: 2,
-            ..Default::default()
-        };
-
-        let result = alarm.target_availabilities(avail);
-        // Should find this week's Monday, this week's Tuesday, and next week's Monday
-        assert_eq!(
-            result.len(),
-            4,
-            "Should find 4 days within the next 2 weeks"
-        );
-    }
-
-    #[test]
-    fn test_filter_by_time_range() {
-        let avail = setup_test_availabilities();
-        let alarm = Alarm {
-            // Only look for slots between 13:00 and 15:00
-            time_range: (
-                NaiveTime::from_hms_opt(13, 0, 0).unwrap(),
-                NaiveTime::from_hms_opt(15, 0, 0).unwrap(),
-            ),
-            weeks_ahead: 5, // Set high to not interfere
-            ..Default::default()
-        };
-
-        let result = alarm.target_availabilities(avail);
-        assert_eq!(
-            result.len(),
-            1,
-            "Should only find one day with matching slots"
-        );
-
-        let day = result.values().next().unwrap();
-        assert_eq!(
-            day.courts().len(),
-            1,
-            "Should be one court with a matching slot"
-        );
-        assert_eq!(
-            day.courts()[0].slots().len(),
-            1,
-            "Should be one matching slot"
-        );
-        // assert!(day.courts()[0].slots()[0].start_at().contains("T14:00:00"));
-    }
-
-    #[test]
-    fn test_filter_by_court_type() {
-        let avail = setup_test_availabilities();
-        let alarm = Alarm {
-            court_type: CourtType::Outdoor,
-            weeks_ahead: 5, // Set high to not interfere
-            ..Default::default()
-        };
-
-        let result = alarm.target_availabilities(avail);
-        assert_eq!(
-            result.len(),
-            1,
-            "Should only find one day with an outdoor court"
-        );
-        let day = result.values().next().unwrap();
-        assert_eq!(day.courts().len(), 1, "Should only be one outdoor court");
-        assert!(!day.courts()[0].is_indoor());
-    }
-
-    #[test]
-    fn test_combined_filters() {
-        let avail = setup_test_availabilities();
-        // Alarm for outdoor courts on Mondays between 09:00 and 11:00, within the next 3 weeks
-        let alarm = Alarm {
-            days_of_the_week: vec![Weekday::Mon],
-            weeks_ahead: 3,
-            court_type: CourtType::Outdoor,
-            time_range: (
-                NaiveTime::from_hms_opt(9, 0, 0).unwrap(),
-                NaiveTime::from_hms_opt(11, 0, 0).unwrap(),
-            ),
-            ..Default::default()
-        };
-
-        let result = alarm.target_availabilities(avail);
-        assert_eq!(
-            result.len(),
-            1,
-            "Should be exactly one day matching all criteria"
-        );
-        let day = result.values().next().unwrap();
-        assert_eq!(day.courts().len(), 1, "Should be one court");
-        assert!(!day.courts()[0].is_indoor(), "Court should be outdoor");
-        assert_eq!(day.courts()[0].slots().len(), 1, "Should be one slot");
-        assert!(day.courts()[0].slots()[0].start_at().contains("10:00"));
-        assert!(day.courts()[0].slots()[0].prices().len() == 1);
-    }
-
-    #[test]
-    fn test_no_matches() {
-        let avail = setup_test_availabilities();
-        // Alarm for a time where there are no slots
-        let alarm = Alarm {
-            time_range: (
-                NaiveTime::from_hms_opt(1, 0, 0).unwrap(),
-                NaiveTime::from_hms_opt(2, 0, 0).unwrap(),
-            ),
-            weeks_ahead: 5,
-            ..Default::default()
-        };
-
-        let result = alarm.target_availabilities(avail);
-        assert!(
-            result.is_empty(),
-            "Result should be empty when no slots match"
-        );
-    }
+    use super::*;
 
     #[tokio::test]
     async fn test_notify_users_for_freed_courts() {
-        use sqlx::sqlite::SqlitePoolOptions;
-        // 1. Setup in-memory database
-        let pool = SqlitePoolOptions::new()
-            .connect("sqlite::memory:")
+        let (_, state) = crate::mock::setup_test_server().await;
+        let email = "toto@toto.com";
+        let token = "notif_token";
+        let device_id = "device";
+        let user = state.db.create_user(email).await.unwrap();
+        // Setup device
+        state
+            .db
+            .register_device(device_id, token, user.id)
             .await
-            .expect("Failed to create in-memory db");
+            .unwrap();
 
-        // 2. Run migrations
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .expect("Failed to run migrations");
-
-        let state = AppState {
-            calendar: Arc::new(RwLock::new(Calendar::default())),
-            db: pool.clone(),
-            jwt_secret: "secret".to_string(),
-        };
-
-        // 3. Setup test user and alarm
-        let user_id = Uuid::new_v4();
+        // Setup alarm
         let alarm = Alarm {
             name: "Morning Indoor".to_string(),
             court_type: CourtType::Indoor,
@@ -559,31 +265,7 @@ mod tests {
             is_active: true,
             ..Default::default()
         };
-        let alarm_json = serde_json::to_string(&alarm).unwrap();
-
-        let ts = chrono::Utc::now().timestamp();
-        sqlx::query!(
-            "INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)",
-            user_id,
-            "test@example.com",
-            ts
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-
-        let alarm_id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO alarms (id, user_id, alarm_json, is_active, created_at) VALUES (?, ?, ?, ?, ?)",
-            alarm_id,
-            user_id,
-            alarm_json,
-            true,
-            ts
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
+        state.db.update_alarms(user.id, vec![alarm]).await.unwrap();
 
         // 4. Construct old and new availabilities
         // We want a slot that was NOT bookable in old, but IS bookable in new.
@@ -608,8 +290,8 @@ mod tests {
         let results = notify_users_for_freed_courts(state, new, old).await;
 
         // 6. Assertions
-        assert!(results.contains_key(&user_id));
-        let user_results = results.get(&user_id).unwrap();
+        assert!(results.contains_key(&user.id));
+        let user_results = results.get(&user.id).unwrap();
         assert!(user_results.contains_key("Morning Indoor"));
         let notified_avail = user_results.get("Morning Indoor").unwrap();
 
@@ -618,5 +300,93 @@ mod tests {
         assert_eq!(notified_day.courts().len(), 1);
         assert_eq!(notified_day.courts()[0].slots().len(), 1);
         assert!(notified_day.courts()[0].slots()[0].prices()[0].bookable());
+    }
+
+    #[test]
+    fn freed_courts_correct_simple() {
+        let mut old_day = DayPlanningResponse::default();
+        let mut new_day = DayPlanningResponse::default();
+
+        let mut old_price = Price::default();
+        old_price.set_bookable(false);
+        let mut old_slot = Slot::default();
+        let mut old_court = PadelCourtResponse::default();
+
+        let mut new_price = Price::default();
+        new_price.set_bookable(true);
+        let mut new_slot = Slot::default();
+        let mut new_court = PadelCourtResponse::default();
+
+        old_slot.prices_mut().push(old_price);
+        old_court.slots_mut().push(old_slot);
+        old_day.courts_mut().push(old_court);
+
+        new_slot.prices_mut().push(new_price);
+        new_court.slots_mut().push(new_slot);
+        new_day.courts_mut().push(new_court);
+
+        let mut old_cal = BTreeMap::new();
+        let mut new_cal = BTreeMap::new();
+        old_cal.insert("toto".to_owned(), old_day);
+        new_cal.insert("toto".to_owned(), new_day);
+
+        let freed = freed_courts(&new_cal, &old_cal);
+        assert_eq!(freed.len(), 1);
+    }
+
+    #[test]
+    fn freed_courts_correct() {
+        let mut old = crate::mock::json_to_calendar(4);
+        let mut new = old.clone();
+        let new_ptr: *const Availibilities = &new as *const Availibilities;
+        let old_ptr: *const Availibilities = &old as *const Availibilities;
+
+        let new_avail = freed_courts(&new, &old);
+        assert!(new_avail.is_empty());
+
+        let mut counter = 0;
+        for (old_day, new_day) in old.values_mut().zip(new.values_mut()) {
+            for (old_court, new_court) in old_day
+                .courts_mut()
+                .iter_mut()
+                .zip(new_day.courts_mut().iter_mut())
+            {
+                for (old_slot, new_slot) in old_court
+                    .slots_mut()
+                    .iter_mut()
+                    .zip(new_court.slots_mut().iter_mut())
+                {
+                    for (old_price, new_price) in old_slot
+                        .prices_mut()
+                        .iter_mut()
+                        .zip(new_slot.prices_mut().iter_mut())
+                    {
+                        old_price.set_bookable(false);
+                        new_price.set_bookable(true);
+                        counter += 1;
+                        unsafe {
+                            let avail = freed_courts(&*new_ptr, &*old_ptr);
+                            assert_eq!(get_available_prices(&avail).len(), counter);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn get_available_prices(avail: &Availibilities) -> Vec<Price> {
+        let mut prices = vec![];
+        avail.values().for_each(|day| {
+            day.courts().iter().for_each(|court| {
+                court.slots().iter().for_each(|slot| {
+                    slot.prices().iter().for_each(|price| {
+                        if price.bookable() {
+                            prices.push(price.clone());
+                        }
+                    })
+                })
+            })
+        });
+        prices
     }
 }
