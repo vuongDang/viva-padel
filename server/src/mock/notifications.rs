@@ -19,10 +19,9 @@ impl NotificationsService for MockNotificationsService {
         body: &str,
         data: Option<serde_json::Value>,
     ) -> Result<(), String> {
-        dbg!(&data);
-        let notification = notification_request_payload(tokens, title, body, data);
-        tracing::info!("MOCK notifications: {:?}", &notification);
-        self.notifications.lock().await.push(notification);
+        let notif = notification_request_payload(tokens, title, body, data);
+        tracing::info!("MOCK notifications: {:?}", &notif);
+        self.notifications.lock().await.push(notif);
         Ok(())
     }
 }
