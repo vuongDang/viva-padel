@@ -231,6 +231,50 @@ export default function App() {
     }
   };
 
+  const handleSaveAlarm = async (alarmConfig) => {
+    let finalName = alarmConfig.name;
+    const otherAlarms = alarms.filter(a => a.id !== alarmConfig.id);
+
+    let counter = 1;
+    while (otherAlarms.some(a => a.name === finalName)) {
+      finalName = `${alarmConfig.name} ${counter}`;
+      counter++;
+    }
+
+    const configWithUniqueName = { ...alarmConfig, name: finalName };
+    let finalAlarm;
+    let updatedAlarms;
+
+
+    if (alarmConfig.id) {
+      finalAlarm = configWithUniqueName;
+      updatedAlarms = alarms.map(a => a.id === alarmConfig.id ? finalAlarm : a);
+    } else {
+      finalAlarm = {
+        ...configWithUniqueName,
+        id: Date.now().toString(),
+        activated: true
+      };
+      updatedAlarms = [...alarms, finalAlarm];
+    }
+    handleUpdateAlarms(updatedAlarms);
+    return finalAlarm;
+  };
+
+
+  const handleDeleteAlarm = (id) => {
+    const updatedAlarms = alarms.filter(alarm => alarm.id !== id);
+    handleUpdateAlarms(updatedAlarms);
+  };
+
+  const handleToggleAlarm = (id) => {
+    const updatedAlarms = alarms.map(alarm =>
+      alarm.id === id ? { ...alarm, activated: !alarm.activated } : alarm
+    );
+    handleUpdateAlarms(updatedAlarms);
+  };
+
+
   const handleIncomingMatchedResults = useCallback(async (newResults) => {
     setMatchedResults(prev => {
       const updated = { ...prev };
@@ -288,7 +332,11 @@ export default function App() {
                 user={user}
                 onLogin={handleLogin}
                 onLogout={handleLogout}
+                alarms={alarms}
+                onSaveAlarm={handleSaveAlarm}
+                onDeleteAlarm={handleDeleteAlarm}
               />
+
 
             )}
           </Stack.Screen>
@@ -301,11 +349,14 @@ export default function App() {
                 user={user}
                 alarms={alarms}
                 matchedResults={matchedResults}
-                onUpdateAlarms={handleUpdateAlarms}
+                onSaveAlarm={handleSaveAlarm}
+                onDeleteAlarm={handleDeleteAlarm}
+                onToggleAlarm={handleToggleAlarm}
                 onClearMatchedResult={handleClearMatchedResult}
                 onLogin={handleLogin}
                 onLogout={handleLogout}
               />
+
             )}
           </Stack.Screen>
         </Stack.Navigator>

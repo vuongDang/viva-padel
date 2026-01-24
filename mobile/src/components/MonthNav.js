@@ -28,10 +28,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginHorizontal: theme.spacing.m,
-        marginBottom: theme.spacing.m,
+        marginHorizontal: 16,
+        marginBottom: 8,
         gap: 12,
     },
+
     navBtn: {
         width: 40,
         height: 40,

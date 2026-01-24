@@ -62,7 +62,8 @@ export const AlarmService = {
                     `${alarm.endTime || "23:59"}:00`
                 ],
                 court_type: court_type,
-                weeks_ahead: alarm.period || 1,
+                weeks_ahead: 1,
+
                 is_active: alarm.activated ?? true,
                 slot_durations: alarm.slotDurations || [3600, 5400, 7200]
             };
@@ -123,7 +124,7 @@ export const AlarmService = {
                 startTime: startTime,
                 endTime: endTime,
                 types: types,
-                period: sa.weeks_ahead || 1,
+
                 activated: sa.is_active ?? true,
                 slotDurations: sa.slot_durations || [3600, 5400, 7200]
             };

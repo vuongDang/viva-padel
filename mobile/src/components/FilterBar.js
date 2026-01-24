@@ -14,33 +14,38 @@ export default function FilterBar({
   onSelectFilter,
   onDeleteMode,
   isDeleteMode,
+  onEditMode,
+  isEditMode,
   onCreateFilter,
 }) {
+
   return (
     <View style={styles.container}>
+      <View style={styles.fixedHeader}>
+        <Text style={styles.label}>Créneaux</Text>
+
+        <TouchableOpacity style={styles.actionBtn} onPress={onCreateFilter}>
+          <Text style={styles.actionBtnText}>+</Text>
+        </TouchableOpacity>
+
+        {/* Edit Toggle */}
+        <TouchableOpacity
+          style={[styles.actionBtn, isEditMode && styles.actionBtnActive]}
+          onPress={onEditMode}
+        >
+          <Text style={[styles.actionBtnText, isEditMode && styles.actionBtnTextActive, { fontSize: 16 }]}>✎</Text>
+        </TouchableOpacity>
+
+        {/* Delete Toggle */}
+        <TouchableOpacity
+          style={[styles.actionBtn, isDeleteMode && styles.actionBtnActive]}
+          onPress={onDeleteMode}
+        >
+          <Text style={[styles.actionBtnText, isDeleteMode && styles.actionBtnTextActive, { fontSize: 16, marginTop: -1 }]}>✕</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.tagsContainer}>
-        <View style={styles.fixedHeader}>
-          <Text style={styles.label}>Filtres</Text>
-
-          <TouchableOpacity style={styles.actionBtn} onPress={onCreateFilter}>
-            <Text style={styles.actionBtnText}>+</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionBtn, isDeleteMode && styles.actionBtnActive]}
-            onPress={onDeleteMode}
-          >
-            <Text
-              style={[
-                styles.actionBtnText,
-                isDeleteMode && styles.actionBtnTextActive,
-              ]}
-            >
-              -
-            </Text>
-          </TouchableOpacity>
-        </View>
-
         <TouchableOpacity
           style={[
             styles.filterBtn,
@@ -55,6 +60,7 @@ export default function FilterBar({
             ]}
           >
             Tous
+
           </Text>
         </TouchableOpacity>
 
@@ -65,6 +71,7 @@ export default function FilterBar({
               styles.filterBtn,
               activeFilterId === filter.id && styles.filterBtnActive,
               isDeleteMode && styles.filterBtnDelete,
+              isEditMode && styles.filterBtnEdit,
             ]}
             onPress={() => onSelectFilter(filter.id)}
           >
@@ -73,36 +80,39 @@ export default function FilterBar({
                 styles.filterText,
                 activeFilterId === filter.id && styles.filterTextActive,
                 isDeleteMode && styles.filterTextDelete,
+                isEditMode && styles.filterTextEdit,
               ]}
             >
-              {isDeleteMode ? "× " : ""}
-              {filter.name}
+              {isDeleteMode ? "× " : isEditMode ? "✎ " : ""}
+              {filter.name || "Sans nom"}
+
             </Text>
           </TouchableOpacity>
         ))}
       </View>
     </View>
+
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
+    flexDirection: "column",
     paddingVertical: 12,
     paddingHorizontal: 16,
     backgroundColor: theme.colors.headerBg,
     marginHorizontal: 16,
     marginVertical: 12,
-    borderRadius: 30,
-    gap: 8,
+    borderRadius: 20,
+    gap: 12,
   },
+
   fixedHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginRight: 4,
+    width: '100%',
   },
+
   label: {
     fontWeight: "600",
     fontSize: 14,
@@ -121,9 +131,12 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   actionBtnActive: {
-    backgroundColor: theme.colors.unavailable,
-    borderColor: theme.colors.unavailable,
+    backgroundColor: '#333',
+    borderColor: '#333',
   },
+
+
+
   actionBtnText: {
     color: theme.colors.grayText,
     fontSize: 18,
@@ -133,38 +146,56 @@ const styles = StyleSheet.create({
     color: "white",
   },
   tagsContainer: {
-    flex: 1,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+    width: '100%',
   },
+
+
   filterBtn: {
     paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 16,
+    paddingHorizontal: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
-    marginLeft: 0,
+    borderColor: "#DDD",
+    backgroundColor: "#FFF",
   },
+
+
   filterBtnActive: {
     backgroundColor: theme.colors.availableLight,
     borderColor: "#ceead6",
   },
   filterBtnDelete: {
-    backgroundColor: theme.colors.unavailableLight,
-    borderColor: "#fad2cf",
+    backgroundColor: "#F0F0F0",
+    borderColor: "#E0E0E0",
   },
+
   filterText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#000000",
   },
+
+
   filterTextActive: {
     color: "#137333",
     fontWeight: "600",
   },
   filterTextDelete: {
-    color: "#d93025",
+    color: "#333",
+    fontWeight: "600",
   },
+  filterBtnEdit: {
+    backgroundColor: "#F0F0F0",
+    borderColor: "#E0E0E0",
+  },
+  filterTextEdit: {
+    color: "#333",
+    fontWeight: "600",
+  },
+
+
+
 });

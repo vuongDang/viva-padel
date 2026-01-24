@@ -8,8 +8,8 @@ import AvailabilityModal from "../components/Modals/AvailabilityModal";
 import BookingModal from "../components/Modals/BookingModal";
 import CreationModal from "../components/Modals/CreationModal";
 import { matchesFilter } from "../utils/filterUtils";
-import { FilterService } from "../services/filterService";
 import AuthBadge from "../components/AuthBadge";
+
 
 
 export default function CalendarScreen({
@@ -22,64 +22,36 @@ export default function CalendarScreen({
     onInitialLoad,
     user,
     onLogin,
-    onLogout
+    onLogout,
+    alarms,
+    onSaveAlarm,
+    onDeleteAlarm
 }) {
+
 
 
     const [currentMonthDate, setCurrentMonthDate] = useState(new Date(2026, 0, 1));
 
-    const evening_week_filter = {
-        id: "default-filter-evenings",
-        name: "Soirs semaine int",
-        types: { indoor: true, outdoor: false },
-        weekdays: [0, 1, 2, 3, 4],
-        startTime: "17:30",
-        endTime: "21:00",
-        slotDurations: [5400, 7200],
-    };
-
-
-    const lunch_week_filter = {
-        id: "default-filter-lunch",
-        name: "Midis semaine int",
-        types: { indoor: true, outdoor: false },
-        weekdays: [0, 1, 2, 3, 4],
-        startTime: "11:45",
-        endTime: "12:30",
-        slotDurations: [5400, 7200],
-    };
-
-
-    const [filters, setFilters] = useState([]);
-    const [activeFilterId, setActiveFilterId] = useState("all");
+    const [activeAlarmId, setActiveAlarmId] = useState("all");
     const [deleteMode, setDeleteMode] = useState(false);
+    const [editMode, setEditMode] = useState(false);
+    const [selectedAlarmToEdit, setSelectedAlarmToEdit] = useState(null);
+
+
 
     // Modals state
     const [availModalVisible, setAvailModalVisible] = useState(false);
     const [selectedDate, setSelectedDate] = useState(null);
     const [bookingModalVisible, setBookingModalVisible] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState(null);
-    const [createFilterVisible, setCreateFilterVisible] = useState(false);
+    const [createModalVisible, setCreateModalVisible] = useState(false);
 
-    // Load filters and active selection on mount
+
+    // Load active selection on mount
     useEffect(() => {
-        const loadInitialData = async () => {
-            const savedFilters = await FilterService.loadFilters();
-            const lastActiveId = await FilterService.loadActiveFilterId();
-
-            if (savedFilters && savedFilters.length > 0) {
-                setFilters(savedFilters);
-            } else {
-                setFilters([evening_week_filter, lunch_week_filter]);
-            }
-
-            if (lastActiveId) {
-                setActiveFilterId(lastActiveId);
-            }
-        };
-        loadInitialData();
         onInitialLoad();
     }, []);
+
 
     const handlePrevMonth = () => {
         setCurrentMonthDate(new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() - 1, 1));
@@ -89,30 +61,55 @@ export default function CalendarScreen({
         setCurrentMonthDate(new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() + 1, 1));
     };
 
-    const handleCreateFilter = async (newFilter) => {
-        const id = "filter-" + Date.now().toString();
-        const updatedFilters = [...filters, { ...newFilter, id }];
-        setFilters(updatedFilters);
-        await FilterService.saveFilters(updatedFilters);
-        setCreateFilterVisible(false);
-        setActiveFilterId(id);
-        await FilterService.saveActiveFilterId(id);
+    const handleSaveAlarmInternal = async (newAlarm) => {
+        const savedAlarm = await onSaveAlarm(newAlarm);
+        if (savedAlarm && savedAlarm.id) {
+            setActiveAlarmId(savedAlarm.id);
+        }
+        setCreateModalVisible(false);
+        setSelectedAlarmToEdit(null);
+        setEditMode(false);
+        setDeleteMode(false);
     };
 
-    const handleFilterSelect = async (id) => {
-        if (deleteMode && id !== "all") {
-            const updatedFilters = filters.filter((f) => f.id !== id);
-            setFilters(updatedFilters);
-            await FilterService.saveFilters(updatedFilters);
-            if (activeFilterId === id) {
-                setActiveFilterId("all");
-                await FilterService.saveActiveFilterId("all");
+
+
+
+
+
+    const handleAlarmSelect = (id) => {
+        if (id === "all") {
+            setActiveAlarmId("all");
+            return;
+        }
+
+        if (deleteMode) {
+            onDeleteAlarm(id);
+            if (activeAlarmId === id) {
+                setActiveAlarmId("all");
+            }
+        } else if (editMode) {
+            const alarm = alarms.find(a => a.id === id);
+            if (alarm) {
+                setSelectedAlarmToEdit(alarm);
+                setCreateModalVisible(true);
             }
         } else {
-            setActiveFilterId(id);
-            await FilterService.saveActiveFilterId(id);
+            setActiveAlarmId(id);
         }
     };
+
+    const toggleDeleteMode = () => {
+        setDeleteMode(!deleteMode);
+        if (!deleteMode) setEditMode(false);
+    };
+
+    const toggleEditMode = () => {
+        setEditMode(!editMode);
+        if (!editMode) setDeleteMode(false);
+    };
+
+
 
     const checkAvailability = useCallback(
         (dateStr) => {
@@ -121,15 +118,16 @@ export default function CalendarScreen({
                 return dayAvail["hydra:member"].some((playground) =>
                     playground.activities.some((activity) =>
                         activity.slots.some((slot) =>
-                            matchesFilter(slot, playground, dateStr, activeFilterId, filters),
+                            matchesFilter(slot, playground, dateStr, activeAlarmId, alarms),
                         ),
                     ),
                 );
             }
             return false;
         },
-        [availabilities, activeFilterId, filters],
+        [availabilities, activeAlarmId, alarms],
     );
+
 
     const onDateClick = (dateStr) => {
         if (checkAvailability(dateStr)) {
@@ -157,19 +155,29 @@ export default function CalendarScreen({
 
 
 
-            <FilterBar
-                filters={filters}
-                activeFilterId={activeFilterId}
-                onSelectFilter={handleFilterSelect}
-                onDeleteMode={() => setDeleteMode(!deleteMode)}
-                isDeleteMode={deleteMode}
-                onCreateFilter={() => setCreateFilterVisible(true)}
-            />
+            <View style={styles.filterSection}>
+                <FilterBar
+                    filters={alarms}
+                    activeFilterId={activeAlarmId}
+                    onSelectFilter={handleAlarmSelect}
+                    onDeleteMode={toggleDeleteMode}
+                    isDeleteMode={deleteMode}
+                    onEditMode={toggleEditMode}
+                    isEditMode={editMode}
+                    onCreateFilter={() => {
+                        setSelectedAlarmToEdit(null);
+                        setCreateModalVisible(true);
+                    }}
+                />
+            </View>
 
-            <MonthNav currentDate={currentMonthDate} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} />
+
+            <View style={styles.divider} />
 
             <ScrollView contentContainerStyle={styles.content}>
+                <MonthNav currentDate={currentMonthDate} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} />
                 <Calendar availabilities={availabilities} currentMonthDate={currentMonthDate} onDateClick={onDateClick} filterFn={checkAvailability} loading={loading} />
+
                 <Text style={styles.footerNote}>
                     Les disponibilités sont rafraîchies toutes les 30 min de 7:00 à 23:00.{"\n"}
                     {calendarTimestamp ? `Dernière mise à jour : ${new Date(calendarTimestamp * 1000).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : "Chargement..."}
@@ -197,16 +205,31 @@ export default function CalendarScreen({
                 dayAvail={selectedDate ? availabilities[selectedDate] : null}
                 onClose={() => setAvailModalVisible(false)}
                 onSlotClick={onSlotClick}
-                filterFn={useCallback((slot, playground) => matchesFilter(slot, playground, selectedDate, activeFilterId, filters), [selectedDate, activeFilterId, filters])}
+                filterFn={useCallback((slot, playground) => matchesFilter(slot, playground, selectedDate, activeAlarmId, alarms), [selectedDate, activeAlarmId, alarms])}
             />
+
 
             <BookingModal visible={bookingModalVisible} slotGroup={selectedSlot} onClose={() => setBookingModalVisible(false)} />
             <CreationModal
-                visible={createFilterVisible}
-                onClose={() => setCreateFilterVisible(false)}
-                onCreate={handleCreateFilter}
-                mode="filter"
+                visible={createModalVisible}
+                onClose={() => {
+                    setCreateModalVisible(false);
+                    setSelectedAlarmToEdit(null);
+                }}
+                onCreate={handleSaveAlarmInternal}
+                onDelete={(id) => {
+                    onDeleteAlarm(id);
+                    setCreateModalVisible(false);
+                    setSelectedAlarmToEdit(null);
+                    setEditMode(false);
+                    setDeleteMode(false);
+                }}
+
+                initialData={selectedAlarmToEdit}
             />
+
+
+
         </SafeAreaView>
     );
 }
@@ -278,8 +301,21 @@ const styles = StyleSheet.create({
 
     content: {
         padding: 20,
+        paddingTop: 10,
         paddingBottom: 60
     },
+    filterSection: {
+        backgroundColor: '#FFF',
+        paddingBottom: 4,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
+    },
+    divider: {
+        height: 12,
+        backgroundColor: '#FAFAFA', // Match screen background
+    },
+
+
     footerNote: {
         marginTop: 20,
         textAlign: 'center',

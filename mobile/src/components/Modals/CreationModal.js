@@ -26,52 +26,49 @@ const minutesToTime = (totalMinutes) => {
 };
 
 /**
- * Shared Configuration Modal for both Alarms and Filters.
- * mode: 'alarm' | 'filter'
+ * Shared Configuration Modal for Time Slots (Alarms).
  */
-export default function CreationModal({ visible, onClose, onCreate, onDelete, mode = 'filter', initialData = null }) {
-    const isAlarm = mode === 'alarm';
+export default function CreationModal({ visible, onClose, onCreate, onDelete, initialData = null }) {
     const isEditing = !!initialData;
 
     const [name, setName] = useState("");
     const [indoor, setIndoor] = useState(true);
-    const [outdoor, setOutdoor] = useState(mode === 'filter');
+    const [outdoor, setOutdoor] = useState(false);
     const [selectedDays, setSelectedDays] = useState([0, 1, 2, 3, 4, 5, 6]);
     const [timeRange, setTimeRange] = useState([
-        timeToMinutes(isAlarm ? "17:30" : "08:00"),
+        timeToMinutes("17:30"),
         timeToMinutes("22:00"),
     ]);
-    const [period, setPeriod] = useState(2);
     const [slotDurations, setSlotDurations] = useState([3600, 5400, 7200]);
+
 
     useEffect(() => {
         if (visible) {
             if (initialData) {
                 setName(initialData.name || "");
                 setIndoor(initialData.types?.indoor ?? true);
-                setOutdoor(initialData.types?.outdoor ?? (mode === 'filter'));
+                setOutdoor(initialData.types?.outdoor ?? false);
                 setSelectedDays(initialData.weekdays || [0, 1, 2, 3, 4, 5, 6]);
                 setTimeRange([
-                    timeToMinutes(initialData.startTime || (isAlarm ? "17:30" : "08:00")),
+                    timeToMinutes(initialData.startTime || "17:30"),
                     timeToMinutes(initialData.endTime || "22:00"),
                 ]);
-                setPeriod(initialData.period || 2);
                 setSlotDurations(initialData.slotDurations || [3600, 5400, 7200]);
             } else {
                 // Reset to defaults for new creation
                 setName("");
                 setIndoor(true);
-                setOutdoor(mode === 'filter');
+                setOutdoor(false);
                 setSelectedDays([0, 1, 2, 3, 4, 5, 6]);
                 setTimeRange([
-                    timeToMinutes(isAlarm ? "17:30" : "08:00"),
+                    timeToMinutes("17:30"),
                     timeToMinutes("22:00"),
                 ]);
-                setPeriod(2);
                 setSlotDurations([3600, 5400, 7200]);
             }
         }
-    }, [visible, initialData, mode, isAlarm]);
+    }, [visible, initialData]);
+
 
     const toggleDuration = (duration) => {
         if (slotDurations.includes(duration)) {
@@ -94,19 +91,15 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
     const handleSubmit = () => {
         const trimmedName = name.trim();
         const config = {
-            name: trimmedName || (isAlarm ? "Mon Créneau" : "Mon Filtre"),
-
+            name: trimmedName || "Mon Créneau",
             types: { indoor, outdoor },
             weekdays: selectedDays,
             startTime: minutesToTime(timeRange[0]),
             endTime: minutesToTime(timeRange[1]),
             slotDurations: slotDurations,
+            activated: true,
         };
 
-        if (isAlarm) {
-            config.period = period;
-            config.activated = true;
-        }
 
         if (initialData?.id) {
             config.id = initialData.id;
@@ -128,8 +121,7 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
                 <View style={styles.content}>
                     <View style={styles.header}>
                         <Text style={styles.title}>
-                            {isEditing ? (isAlarm ? "Modifier le Créneau" : "Modifier le Filtre") : (isAlarm ? "Nouveau Créneau" : "Nouveau Filtre")}
-
+                            {isEditing ? "Modifier le Créneau" : "Nouveau Créneau"}
                         </Text>
                         <TouchableOpacity onPress={onClose}>
                             <Text style={styles.closeIcon}>✕</Text>
@@ -141,7 +133,7 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
                             <Text style={styles.label}>Nom</Text>
                             <TextInput
                                 style={styles.input}
-                                placeholder={isAlarm ? "Ex: Soirée Semaine" : "Ex: Tous les soirs"}
+                                placeholder="Ex: Soirée Semaine"
                                 value={name}
                                 onChangeText={setName}
                                 placeholderTextColor="#AAA"
@@ -207,28 +199,7 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
                             />
                         </View>
 
-                        {isAlarm && (
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Nombre de semaines scanées:</Text>
-                                <View style={styles.counterContainer}>
-                                    <TouchableOpacity
-                                        style={styles.counterButton}
-                                        onPress={() => setPeriod(Math.max(1, period - 1))}
-                                    >
-                                        <Text style={styles.counterButtonText}>−</Text>
-                                    </TouchableOpacity>
-                                    <View style={styles.periodValueContainer}>
-                                        <Text style={styles.periodValueText}>{period}</Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        style={styles.counterButton}
-                                        onPress={() => setPeriod(Math.min(8, period + 1))}
-                                    >
-                                        <Text style={styles.counterButtonText}>+</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        )}
+
 
                         <View style={styles.formGroup}>
                             <Text style={styles.label}>Durées (h)</Text>
@@ -259,8 +230,7 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
 
                         <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
                             <Text style={styles.submitButtonText}>
-                                {isEditing ? "Enregistrer les modifications" : (isAlarm ? "Créer le créneau" : "Enregistrer le filtre")}
-
+                                {isEditing ? "Enregistrer les modifications" : "Créer le créneau"}
                             </Text>
                         </TouchableOpacity>
 
@@ -282,8 +252,8 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
     );
 }
 
-
 const styles = StyleSheet.create({
+
     overlay: {
         flex: 1,
         justifyContent: "flex-end",
@@ -391,36 +361,7 @@ const styles = StyleSheet.create({
         color: "#1A1A1A",
         marginBottom: 8,
     },
-    counterContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-        marginTop: 4,
-    },
-    counterButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#F5F5F5',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    counterButtonText: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: '#1A1A1A',
-    },
-    periodValueContainer: {
-        minWidth: 40,
-        alignItems: 'center',
-    },
-    periodValueText: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#1A1A1A',
-    },
+
     submitButton: {
         backgroundColor: "#1A1A1A",
         paddingVertical: 16,

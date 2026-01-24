@@ -11,7 +11,8 @@ import AuthBadge from '../components/AuthBadge';
 
 const WEEKDAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
-export default function TimeSlotsScreen({ navigation, route, openDrawer, user, alarms, matchedResults, onUpdateAlarms, onClearMatchedResult, onLogin, onLogout }) {
+export default function TimeSlotsScreen({ navigation, route, openDrawer, user, alarms, matchedResults, onSaveAlarm, onDeleteAlarm, onToggleAlarm, onClearMatchedResult, onLogin, onLogout }) {
+
 
     const [createModalVisible, setCreateModalVisible] = useState(false);
     const [editingAlarm, setEditingAlarm] = useState(null);
@@ -62,32 +63,6 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
         return days.map(d => WEEKDAYS_SHORT[d]).join(', ');
     };
 
-    const handleSaveAlarm = (alarmConfig) => {
-        let finalName = alarmConfig.name;
-        const otherAlarms = alarms.filter(a => a.id !== alarmConfig.id);
-
-        // Check if name already exists
-        let counter = 1;
-        while (otherAlarms.some(a => a.name === finalName)) {
-            finalName = `${alarmConfig.name} ${counter}`;
-            counter++;
-        }
-
-        const configWithUniqueName = { ...alarmConfig, name: finalName };
-
-        if (alarmConfig.id) {
-            // Update existing alarm
-            onUpdateAlarms(alarms.map(a => a.id === alarmConfig.id ? configWithUniqueName : a));
-        } else {
-            // Create new alarm
-            const alarmWithId = {
-                ...configWithUniqueName,
-                id: Date.now().toString(),
-            };
-            onUpdateAlarms([...alarms, alarmWithId]);
-        }
-    };
-
     const openEditModal = (alarm) => {
         setEditingAlarm(alarm);
         setCreateModalVisible(true);
@@ -98,15 +73,11 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
         setCreateModalVisible(true);
     };
 
-    const deleteAlarm = (id) => {
-        onUpdateAlarms(alarms.filter(alarm => alarm.id !== id));
+    const toggleAlarm = (id) => {
+
+        onToggleAlarm(id);
     };
 
-    const toggleAlarm = (id) => {
-        onUpdateAlarms(alarms.map(alarm =>
-            alarm.id === id ? { ...alarm, activated: !alarm.activated } : alarm
-        ));
-    };
 
     const handleDateClick = (date, dayPlan, alarm) => {
         setSelectedDate(date);
@@ -221,11 +192,15 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
                     setCreateModalVisible(false);
                     setEditingAlarm(null);
                 }}
-                onCreate={handleSaveAlarm}
-                onDelete={deleteAlarm}
+                onCreate={(alarm) => {
+                    onSaveAlarm(alarm);
+                    setCreateModalVisible(false);
+                }}
+                onDelete={onDeleteAlarm}
                 mode="alarm"
                 initialData={editingAlarm}
             />
+
 
             {/* AuthBadge handles its own login modal internally */}
 
