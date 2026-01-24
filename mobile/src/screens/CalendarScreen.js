@@ -9,16 +9,23 @@ import BookingModal from "../components/Modals/BookingModal";
 import CreationModal from "../components/Modals/CreationModal";
 import { matchesFilter } from "../utils/filterUtils";
 import { FilterService } from "../services/filterService";
+import AuthBadge from "../components/AuthBadge";
 
-export default function ReservationsScreen({
+
+export default function CalendarScreen({
     navigation,
     openDrawer,
     availabilities,
     calendarTimestamp,
     loading,
     onRefresh,
-    onInitialLoad
+    onInitialLoad,
+    user,
+    onLogin,
+    onLogout
 }) {
+
+
     const [currentMonthDate, setCurrentMonthDate] = useState(new Date(2026, 0, 1));
 
     const evening_week_filter = {
@@ -28,7 +35,9 @@ export default function ReservationsScreen({
         weekdays: [0, 1, 2, 3, 4],
         startTime: "17:30",
         endTime: "21:00",
+        slotDurations: [5400, 7200],
     };
+
 
     const lunch_week_filter = {
         id: "default-filter-lunch",
@@ -37,7 +46,9 @@ export default function ReservationsScreen({
         weekdays: [0, 1, 2, 3, 4],
         startTime: "11:45",
         endTime: "12:30",
+        slotDurations: [5400, 7200],
     };
+
 
     const [filters, setFilters] = useState([]);
     const [activeFilterId, setActiveFilterId] = useState("all");
@@ -138,12 +149,13 @@ export default function ReservationsScreen({
                 <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
                     <Text style={styles.menuIcon}>☰</Text>
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Réservations</Text>
+                <Text style={styles.headerTitle}>Calendrier</Text>
+
                 <View style={styles.headerSpacer} />
-                <TouchableOpacity style={styles.refreshButton} onPress={onRefresh} disabled={loading}>
-                    {loading ? <ActivityIndicator size="small" color="#333" /> : <Text style={styles.refreshIcon}>↻</Text>}
-                </TouchableOpacity>
+                <AuthBadge user={user} onLogin={onLogin} onLogout={onLogout} />
             </View>
+
+
 
             <FilterBar
                 filters={filters}
@@ -162,7 +174,22 @@ export default function ReservationsScreen({
                     Les disponibilités sont rafraîchies toutes les 30 min de 7:00 à 23:00.{"\n"}
                     {calendarTimestamp ? `Dernière mise à jour : ${new Date(calendarTimestamp * 1000).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : "Chargement..."}
                 </Text>
+
             </ScrollView>
+
+            <TouchableOpacity
+                style={[styles.floatingRefreshButton, loading && styles.disabledButton]}
+                onPress={onRefresh}
+                disabled={loading}
+            >
+                {loading ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                    <Text style={styles.refreshBtnText}>Rafraîchir</Text>
+                )}
+            </TouchableOpacity>
+
+
 
             <AvailabilityModal
                 visible={availModalVisible}
@@ -216,16 +243,39 @@ const styles = StyleSheet.create({
     headerSpacer: {
         flex: 1,
     },
-    refreshButton: {
-        width: 40,
-        height: 40,
+    floatingRefreshButton: {
+        position: 'absolute',
+        bottom: 30,
+        alignSelf: 'center',
+        backgroundColor: '#1A1A1A',
+        borderRadius: 25,
+        paddingHorizontal: 24,
+        height: 50,
         justifyContent: 'center',
         alignItems: 'center',
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        minWidth: 140,
+        zIndex: 10,
     },
-    refreshIcon: {
-        fontSize: 20,
-        color: '#333'
+    refreshBtnText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#FFF',
+        textAlign: 'center',
+        includeFontPadding: false,
+        textAlignVertical: 'center',
     },
+
+
+    disabledButton: {
+        opacity: 0.6,
+    },
+
+
     content: {
         padding: 20,
         paddingBottom: 60

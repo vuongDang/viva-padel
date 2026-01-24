@@ -5,13 +5,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.7;
 
-export default function CustomDrawer({ visible, onClose, onNavigate, currentScreen, onLogout, user }) {
+export default function CustomDrawer({ visible, onClose, onNavigate, currentScreen, onLogout, user, onSimulateMatch }) {
     const insets = useSafeAreaInsets();
 
     const menuItems = [
         { id: 'Home', label: 'Accueil' },
-        { id: 'Reservations', label: 'Réservations' },
-        { id: 'Alarms', label: 'Alarmes' },
+        { id: 'Calendar', label: 'Calendrier' },
+        { id: 'TimeSlots', label: 'Mes créneaux' },
+
+
+
     ];
 
     const handleNavigate = (screenId) => {
@@ -35,7 +38,18 @@ export default function CustomDrawer({ visible, onClose, onNavigate, currentScre
                 <View style={[styles.drawer, { paddingTop: insets.top }]}>
                     <View style={styles.header}>
                         <Text style={styles.headerTitle}>Viva Padel</Text>
+                        {user?.email && (
+                            <Text style={styles.userEmail} numberOfLines={1} ellipsizeMode="tail">
+                                {user.email}
+                            </Text>
+                        )}
+                        <View style={styles.statusContainer}>
+                            <View style={[styles.statusDot, user ? styles.statusDotConnected : styles.statusDotDisconnected]} />
+                            <Text style={styles.statusText}>{user ? 'Connecté' : 'Non connecté'}</Text>
+                        </View>
                     </View>
+
+
 
                     <View style={styles.menuList}>
                         {menuItems.map((item) => (
@@ -60,6 +74,49 @@ export default function CustomDrawer({ visible, onClose, onNavigate, currentScre
 
                     {user && (
                         <View style={styles.logoutSection}>
+                            {__DEV__ && (
+                                <TouchableOpacity
+                                    style={styles.testItem}
+                                    onPress={() => {
+                                        const mockData = {
+                                            "toto": {
+                                                "2026-01-22": {
+                                                    "courts": [
+                                                        {
+                                                            "name": "Court 1",
+                                                            "indoor": true,
+                                                            "slots": [
+                                                                { "start_at": "18:00", "prices": [{ "bookable": true }] },
+                                                                { "start_at": "19:30", "prices": [{ "bookable": true }] }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "2026-01-27": {
+                                                    "courts": [
+                                                        {
+                                                            "name": "Court 1",
+                                                            "indoor": true,
+                                                            "slots": [
+                                                                { "start_at": "18:00", "prices": [{ "bookable": true }] },
+                                                                { "start_at": "19:30", "prices": [{ "bookable": true }] }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+
+                                            }
+                                        };
+                                        onSimulateMatch(mockData);
+                                        onNavigate('TimeSlots');
+                                        onClose();
+
+                                    }}
+                                >
+                                    <Text style={[styles.testLabel, { color: '#f2994a' }]}>Simuler Match (Debug)</Text>
+                                </TouchableOpacity>
+                            )}
+
                             <TouchableOpacity
                                 style={styles.logoutItem}
                                 onPress={() => {
@@ -108,6 +165,12 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#1A1A1A',
     },
+    userEmail: {
+        fontSize: 13,
+        color: '#666',
+        marginTop: 2,
+    },
+
     menuList: {
         flex: 1,
         paddingTop: 8,
@@ -151,4 +214,27 @@ const styles = StyleSheet.create({
         color: '#FF4444',
         fontWeight: '600',
     },
+    statusContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginRight: 6,
+    },
+    statusDotConnected: {
+        backgroundColor: '#34A853',
+    },
+    statusDotDisconnected: {
+        backgroundColor: '#999',
+    },
+    statusText: {
+        fontSize: 12,
+        color: '#666',
+        fontWeight: '500',
+    },
 });
+

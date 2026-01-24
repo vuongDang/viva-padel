@@ -42,6 +42,7 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
         timeToMinutes("22:00"),
     ]);
     const [period, setPeriod] = useState(2);
+    const [slotDurations, setSlotDurations] = useState([3600, 5400, 7200]);
 
     useEffect(() => {
         if (visible) {
@@ -55,6 +56,7 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
                     timeToMinutes(initialData.endTime || "22:00"),
                 ]);
                 setPeriod(initialData.period || 2);
+                setSlotDurations(initialData.slotDurations || [3600, 5400, 7200]);
             } else {
                 // Reset to defaults for new creation
                 setName("");
@@ -66,9 +68,20 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
                     timeToMinutes("22:00"),
                 ]);
                 setPeriod(2);
+                setSlotDurations([3600, 5400, 7200]);
             }
         }
     }, [visible, initialData, mode, isAlarm]);
+
+    const toggleDuration = (duration) => {
+        if (slotDurations.includes(duration)) {
+            if (slotDurations.length > 1) {
+                setSlotDurations(slotDurations.filter(d => d !== duration));
+            }
+        } else {
+            setSlotDurations([...slotDurations, duration].sort((a, b) => a - b));
+        }
+    };
 
     const toggleDay = (index) => {
         if (selectedDays.includes(index)) {
@@ -81,11 +94,13 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
     const handleSubmit = () => {
         const trimmedName = name.trim();
         const config = {
-            name: trimmedName || (isAlarm ? "Mon Alarme" : "Mon Filtre"),
+            name: trimmedName || (isAlarm ? "Mon Créneau" : "Mon Filtre"),
+
             types: { indoor, outdoor },
             weekdays: selectedDays,
             startTime: minutesToTime(timeRange[0]),
             endTime: minutesToTime(timeRange[1]),
+            slotDurations: slotDurations,
         };
 
         if (isAlarm) {
@@ -113,7 +128,8 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
                 <View style={styles.content}>
                     <View style={styles.header}>
                         <Text style={styles.title}>
-                            {isEditing ? (isAlarm ? "Modifier l'Alarme" : "Modifier le Filtre") : (isAlarm ? "Nouvelle Alarme" : "Nouveau Filtre")}
+                            {isEditing ? (isAlarm ? "Modifier le Créneau" : "Modifier le Filtre") : (isAlarm ? "Nouveau Créneau" : "Nouveau Filtre")}
+
                         </Text>
                         <TouchableOpacity onPress={onClose}>
                             <Text style={styles.closeIcon}>✕</Text>
@@ -214,9 +230,37 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
                             </View>
                         )}
 
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Durées (h)</Text>
+                            <View style={styles.row}>
+                                {[
+                                    { label: "1h", value: 3600 },
+                                    { label: "1.5h", value: 5400 },
+                                    { label: "2h", value: 7200 }
+                                ].map((dur) => (
+                                    <TouchableOpacity
+                                        key={dur.value}
+                                        style={[
+                                            styles.chip,
+                                            slotDurations.includes(dur.value) && styles.chipActive
+                                        ]}
+                                        onPress={() => toggleDuration(dur.value)}
+                                    >
+                                        <Text style={[
+                                            styles.chipText,
+                                            slotDurations.includes(dur.value) && styles.chipTextActive
+                                        ]}>
+                                            {dur.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+
                         <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
                             <Text style={styles.submitButtonText}>
-                                {isEditing ? "Enregistrer les modifications" : (isAlarm ? "Créer l'alarme" : "Enregistrer le filtre")}
+                                {isEditing ? "Enregistrer les modifications" : (isAlarm ? "Créer le créneau" : "Enregistrer le filtre")}
+
                             </Text>
                         </TouchableOpacity>
 
@@ -237,6 +281,7 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, mo
         </Modal>
     );
 }
+
 
 const styles = StyleSheet.create({
     overlay: {

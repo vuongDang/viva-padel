@@ -16,7 +16,10 @@ export default function BookingModal({ visible, slotGroup, onClose }) {
   const durationText = sortedDurations
     .map((d) => {
       const mins = d / 60;
-      return mins === 90 ? "1h30" : "2h";
+      if (mins === 60) return "1h";
+      if (mins === 90) return "1h30";
+      if (mins === 120) return "2h";
+      if (mins === 180) return "3h";
     })
     .join(" ou ");
 

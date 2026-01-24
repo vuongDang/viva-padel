@@ -4,8 +4,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/HomeScreen';
-import ReservationsScreen from './src/screens/ReservationsScreen';
-import AlarmsScreen from './src/screens/AlarmsScreen';
+import CalendarScreen from './src/screens/CalendarScreen';
+import TimeSlotsScreen from './src/screens/TimeSlotsScreen';
+
 import CustomDrawer from './src/components/CustomDrawer';
 import * as Notifications from 'expo-notifications';
 import { NotificationService } from './src/services/notificationService';
@@ -23,7 +24,8 @@ export default function App() {
 
   // Authentication state
   const [user, setUser] = useState(null);
-  const [serverAlarms, setServerAlarms] = useState([]);
+  const [alarms, setAlarms] = useState([]);
+  const [matchedResults, setMatchedResults] = useState({});
 
   // Lifted state for reservations data
   const [availabilities, setAvailabilities] = useState({});
@@ -39,8 +41,7 @@ export default function App() {
 
     console.log('[App] Fetching reservations data...');
     setReservationsLoading(true);
-    const baseUrl = "https://xoi-lap-xuong.com";
-    const apiUrl = `${baseUrl}/viva-padel/calendar`;
+    const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/calendar`;
 
     try {
       const response = await fetch(apiUrl, {
@@ -76,7 +77,8 @@ export default function App() {
       const data = await AuthService.getUserInfo(token);
       if (data.alarms) {
         const mapped = AlarmService.mapServerAlarmsToMobile(data.alarms);
-        setServerAlarms(mapped);
+        setAlarms(mapped);
+        AlarmService.saveLocalAlarms(mapped); // Persistence
         console.log('[App] Fetched and mapped alarms:', mapped.length);
       }
     } catch (error) {
@@ -90,15 +92,32 @@ export default function App() {
 
   useEffect(() => {
     if (lastResponse && lastResponse.notification) {
-      const { title, body } = lastResponse.notification.request.content;
-      setSelectedNotification({ title, body });
-      setModalVisible(true);
+      const { data } = lastResponse.notification.request.content;
+
+      if (data?.availabilities) {
+        handleIncomingMatchedResults(data.availabilities);
+        navigateTo('TimeSlots');
+      } else {
+
+        const { title, body } = lastResponse.notification.request.content;
+        setSelectedNotification({ title, body });
+        setModalVisible(true);
+      }
     }
-  }, [lastResponse]);
+  }, [lastResponse, handleIncomingMatchedResults, navigateTo]);
 
   useEffect(() => {
-    // Check for existing user session on mount
-    const checkUser = async () => {
+    const setup = async () => {
+      // 1. Load local data for immediate UI
+      const [localAlarms, localResults] = await Promise.all([
+        AlarmService.getLocalAlarms(),
+        AlarmService.getMatchedResults()
+      ]);
+
+      if (localAlarms?.length > 0) setAlarms(localAlarms);
+      if (localResults) setMatchedResults(localResults);
+
+      // 2. Check for existing session
       const token = await AuthService.getToken();
       const email = await AuthService.getEmail();
       if (token && email) {
@@ -107,18 +126,24 @@ export default function App() {
         fetchUserInfo(token, email);
       }
     };
-    checkUser();
-
-    NotificationService.registerForPushNotificationsAsync();
+    setup();
 
     const cleanup = NotificationService.initListeners(
       (notification) => {
         console.log('Foreground notification:', notification.request.content.title);
       },
       (response) => {
-        const { title, body } = response.notification.request.content;
-        setSelectedNotification({ title, body });
-        setModalVisible(true);
+        const { data } = response.notification.request.content;
+
+        if (data?.availabilities) {
+          handleIncomingMatchedResults(data.availabilities);
+          navigateTo('TimeSlots');
+        } else {
+
+          const { title, body } = response.notification.request.content;
+          setSelectedNotification({ title, body });
+          setModalVisible(true);
+        }
       }
     );
 
@@ -167,7 +192,12 @@ export default function App() {
   const handleLogout = async () => {
     await AuthService.logout();
     setUser(null);
-    setServerAlarms([]);
+    setAlarms([]);
+    setMatchedResults({});
+    await Promise.all([
+      AlarmService.saveLocalAlarms([]),
+      AlarmService.saveMatchedResults({})
+    ]);
   };
 
   const openDrawer = () => setDrawerVisible(true);
@@ -182,11 +212,44 @@ export default function App() {
     }
   };
 
-  const navigateTo = (screenName) => {
+  const navigateTo = (screenName, params = {}) => {
     setCurrentScreen(screenName);
     if (navigationRef.current) {
-      navigationRef.current.navigate(screenName);
+      navigationRef.current.navigate(screenName, params);
     }
+  };
+
+  const handleUpdateAlarms = async (newAlarms) => {
+    setAlarms(newAlarms);
+    await AlarmService.saveLocalAlarms(newAlarms);
+    if (user) {
+      try {
+        await AlarmService.syncAlarms(newAlarms);
+      } catch (error) {
+        console.error('[App] Failed to sync alarms on change:', error);
+      }
+    }
+  };
+
+  const handleIncomingMatchedResults = useCallback(async (newResults) => {
+    setMatchedResults(prev => {
+      const updated = { ...prev };
+      // Deep merge new results into existing ones
+      Object.entries(newResults).forEach(([alarmName, days]) => {
+        updated[alarmName] = { ...(updated[alarmName] || {}), ...days };
+      });
+      AlarmService.saveMatchedResults(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleClearMatchedResult = async (alarmName) => {
+    setMatchedResults(prev => {
+      const updated = { ...prev };
+      delete updated[alarmName];
+      AlarmService.saveMatchedResults(updated);
+      return updated;
+    });
   };
 
   return (
@@ -211,9 +274,10 @@ export default function App() {
               />
             )}
           </Stack.Screen>
-          <Stack.Screen name="Reservations">
+          <Stack.Screen name="Calendar">
             {(props) => (
-              <ReservationsScreen
+              <CalendarScreen
+
                 {...props}
                 openDrawer={openDrawer}
                 availabilities={availabilities}
@@ -222,16 +286,23 @@ export default function App() {
                 onRefresh={() => fetchReservations(true)}
                 onInitialLoad={() => fetchReservations(false)}
                 user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
               />
+
             )}
           </Stack.Screen>
-          <Stack.Screen name="Alarms">
+          <Stack.Screen name="TimeSlots">
             {(props) => (
-              <AlarmsScreen
+              <TimeSlotsScreen
+
                 {...props}
                 openDrawer={openDrawer}
                 user={user}
-                serverAlarms={serverAlarms}
+                alarms={alarms}
+                matchedResults={matchedResults}
+                onUpdateAlarms={handleUpdateAlarms}
+                onClearMatchedResult={handleClearMatchedResult}
                 onLogin={handleLogin}
                 onLogout={handleLogout}
               />
@@ -247,6 +318,7 @@ export default function App() {
         currentScreen={currentScreen}
         user={user}
         onLogout={handleLogout}
+        onSimulateMatch={handleIncomingMatchedResults}
       />
 
       {/* Notification Content Modal */}

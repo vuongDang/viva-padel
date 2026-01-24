@@ -1,7 +1,13 @@
 export function matchesFilter(slot, playground, dateStr, currentFilterId, customFilters) {
     let filter;
     if (currentFilterId === 'all') {
-        filter = { types: { indoor: true, outdoor: true }, weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '00:00', endTime: '23:59' };
+        filter = {
+            types: { indoor: true, outdoor: true },
+            weekdays: [0, 1, 2, 3, 4, 5, 6],
+            startTime: '00:00',
+            endTime: '23:59',
+            slotDurations: [3600, 5400, 7200]
+        };
     } else {
         filter = customFilters.find(f => f.id === currentFilterId);
     }
@@ -22,5 +28,7 @@ export function matchesFilter(slot, playground, dateStr, currentFilterId, custom
     if (slot.startAt < filter.startTime || slot.startAt > filter.endTime) return false;
 
     // 4. Duration check
-    return slot.prices.some(price => price.bookable && price.duration >= 5400); // 5400s = 90min
+    const allowedDurations = filter.slotDurations || [3600, 5400, 7200];
+    return slot.prices.some(price => price.bookable && allowedDurations.includes(price.duration));
 }
+

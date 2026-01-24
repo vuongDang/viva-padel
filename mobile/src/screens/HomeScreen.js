@@ -2,23 +2,16 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
-import LoginModal from '../components/Modals/LoginModal';
+import AuthBadge from '../components/AuthBadge';
+
 
 export default function HomeScreen({ navigation, openDrawer, user, onLogout, onLogin }) {
-  const [loginModalVisible, setLoginModalVisible] = useState(false);
   const currentDate = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long',
     day: 'numeric',
     month: 'long'
   });
 
-  const handleAuthPress = () => {
-    if (user) {
-      onLogout();
-    } else {
-      setLoginModalVisible(true);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -28,14 +21,9 @@ export default function HomeScreen({ navigation, openDrawer, user, onLogout, onL
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Viva Padel</Text>
         <View style={styles.headerSpacer} />
-        {!user && (
-          <TouchableOpacity
-            style={styles.loginButton}
-            onPress={handleAuthPress}
-          >
-            <Text style={styles.loginButtonText}>Connexion</Text>
-          </TouchableOpacity>
-        )}
+        <AuthBadge user={user} onLogin={onLogin} onLogout={onLogout} />
+
+
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -48,27 +36,27 @@ export default function HomeScreen({ navigation, openDrawer, user, onLogout, onL
 
         <TouchableOpacity
           style={styles.actionCard}
-          onPress={() => navigation.navigate('Reservations')}
+          onPress={() => navigation.navigate('Calendar')}
+
         >
           <Text style={styles.actionTitle}>Réserver un terrain</Text>
-          <Text style={styles.actionDesc}>Voir les disponibilités</Text>
+          <Text style={styles.actionDesc}>Voir le calendrier</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.actionCard}
-          onPress={() => navigation.navigate('Alarms')}
+          onPress={() => navigation.navigate('TimeSlots')}
+
         >
-          <Text style={styles.actionTitle}>Gérer les alarmes</Text>
+          <Text style={styles.actionTitle}>Mes créneaux</Text>
           <Text style={styles.actionDesc}>Configurer les alertes</Text>
         </TouchableOpacity>
+
       </ScrollView>
 
-      <LoginModal
-        visible={loginModalVisible}
-        onClose={() => setLoginModalVisible(false)}
-        onLogin={onLogin}
-      />
+      {/* AuthBadge handles its own login modal internally */}
     </SafeAreaView>
+
   );
 }
 
@@ -104,17 +92,7 @@ const styles = StyleSheet.create({
   headerSpacer: {
     flex: 1,
   },
-  loginButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#F0F0F0',
-  },
-  loginButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
+
   content: {
     padding: 20,
   },
@@ -158,4 +136,6 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 4,
   },
+
 });
+

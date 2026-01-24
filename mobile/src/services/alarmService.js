@@ -1,10 +1,49 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from "./authService";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const WEEKDAY_MAP = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const LOCAL_ALARMS_KEY = 'viva_padel_local_alarms';
+const MATCHED_RESULTS_KEY = 'viva_padel_matched_results';
 
 export const AlarmService = {
+    async getLocalAlarms() {
+        try {
+            const data = await AsyncStorage.getItem(LOCAL_ALARMS_KEY);
+            return data ? JSON.parse(data) : [];
+        } catch (e) {
+            console.error('[AlarmService] Failed to load local alarms:', e);
+            return [];
+        }
+    },
+
+    async saveLocalAlarms(alarms) {
+        try {
+            await AsyncStorage.setItem(LOCAL_ALARMS_KEY, JSON.stringify(alarms));
+        } catch (e) {
+            console.error('[AlarmService] Failed to save local alarms:', e);
+        }
+    },
+
+    async getMatchedResults() {
+        try {
+            const data = await AsyncStorage.getItem(MATCHED_RESULTS_KEY);
+            return data ? JSON.parse(data) : {};
+        } catch (e) {
+            console.error('[AlarmService] Failed to load matched results:', e);
+            return {};
+        }
+    },
+
+    async saveMatchedResults(results) {
+        try {
+            await AsyncStorage.setItem(MATCHED_RESULTS_KEY, JSON.stringify(results));
+        } catch (e) {
+            console.error('[AlarmService] Failed to save matched results:', e);
+        }
+    },
+
     async syncAlarms(alarms) {
         const token = await AuthService.getToken();
         if (!token) throw new Error("Veuillez vous connecter pour activer les notifications.");
@@ -24,8 +63,10 @@ export const AlarmService = {
                 ],
                 court_type: court_type,
                 weeks_ahead: alarm.period || 1,
-                is_active: alarm.activated ?? true
+                is_active: alarm.activated ?? true,
+                slot_durations: alarm.slotDurations || [3600, 5400, 7200]
             };
+
         });
 
         try {
@@ -83,7 +124,8 @@ export const AlarmService = {
                 endTime: endTime,
                 types: types,
                 period: sa.weeks_ahead || 1,
-                activated: sa.is_active ?? true
+                activated: sa.is_active ?? true,
+                slotDurations: sa.slot_durations || [3600, 5400, 7200]
             };
         });
     }

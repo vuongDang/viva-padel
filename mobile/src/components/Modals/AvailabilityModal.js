@@ -53,10 +53,11 @@ export default function AvailabilityModal({ visible, dateStr, dayAvail, onClose,
                             };
                         }
                         slot.prices.forEach(price => {
-                            if (price.bookable && price.duration >= 5400) {
+                            if (price.bookable) {
                                 slotsByTime[slot.startAt].durations.add(price.duration);
                             }
                         });
+
                     }
                 });
             });
