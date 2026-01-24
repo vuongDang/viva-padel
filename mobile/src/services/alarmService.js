@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from "./authService";
+import { fetchWithTimeout } from '../utils/apiUtils';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -44,7 +45,7 @@ export const AlarmService = {
         }
     },
 
-    async syncAlarms(alarms) {
+    async syncAlarms(alarms, weeksAhead = 1) {
         const token = await AuthService.getToken();
         if (!token) throw new Error("Veuillez vous connecter pour activer les notifications.");
 
@@ -62,7 +63,7 @@ export const AlarmService = {
                     `${alarm.endTime || "23:59"}:00`
                 ],
                 court_type: court_type,
-                weeks_ahead: 1,
+                weeks_ahead: weeksAhead,
 
                 is_active: alarm.activated ?? true,
                 slot_durations: alarm.slotDurations || [3600, 5400, 7200]
@@ -70,8 +71,9 @@ export const AlarmService = {
 
         });
 
+
         try {
-            const response = await fetch(`${API_URL}/alarms`, {
+            const response = await fetchWithTimeout(`${API_URL}/alarms`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

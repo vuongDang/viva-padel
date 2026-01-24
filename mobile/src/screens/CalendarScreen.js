@@ -10,6 +10,14 @@ import CreationModal from "../components/Modals/CreationModal";
 import { matchesFilter } from "../utils/filterUtils";
 import AuthBadge from "../components/AuthBadge";
 
+import RefreshNote from "../components/RefreshNote";
+import FloatingRefreshButton from "../components/FloatingRefreshButton";
+import { theme } from '../styles/theme';
+
+
+
+
+
 
 
 export default function CalendarScreen({
@@ -148,12 +156,9 @@ export default function CalendarScreen({
                     <Text style={styles.menuIcon}>☰</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Calendrier</Text>
-
                 <View style={styles.headerSpacer} />
                 <AuthBadge user={user} onLogin={onLogin} onLogout={onLogout} />
             </View>
-
-
 
             <View style={styles.filterSection}>
                 <FilterBar
@@ -171,31 +176,20 @@ export default function CalendarScreen({
                 />
             </View>
 
-
             <View style={styles.divider} />
 
             <ScrollView contentContainerStyle={styles.content}>
                 <MonthNav currentDate={currentMonthDate} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} />
                 <Calendar availabilities={availabilities} currentMonthDate={currentMonthDate} onDateClick={onDateClick} filterFn={checkAvailability} loading={loading} />
-
-                <Text style={styles.footerNote}>
-                    Les disponibilités sont rafraîchies toutes les 30 min de 7:00 à 23:00.{"\n"}
-                    {calendarTimestamp ? `Dernière mise à jour : ${new Date(calendarTimestamp * 1000).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : "Chargement..."}
-                </Text>
-
+                <RefreshNote timestamp={calendarTimestamp} />
             </ScrollView>
 
-            <TouchableOpacity
-                style={[styles.floatingRefreshButton, loading && styles.disabledButton]}
-                onPress={onRefresh}
-                disabled={loading}
-            >
-                {loading ? (
-                    <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                    <Text style={styles.refreshBtnText}>Rafraîchir</Text>
-                )}
-            </TouchableOpacity>
+            <View style={styles.floatingButtonContainer}>
+                <FloatingRefreshButton onPress={onRefresh} loading={loading} style={styles.calendarRefreshButton} />
+            </View>
+
+
+
 
 
 
@@ -237,18 +231,11 @@ export default function CalendarScreen({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFAFA'
+        backgroundColor: theme.colors.background
     },
-    header: {
-        height: 56,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-        backgroundColor: '#FFF',
-    },
+    header: theme.styles.header,
     menuButton: {
+
         width: 40,
         height: 40,
         justifyContent: 'center',
@@ -266,37 +253,20 @@ const styles = StyleSheet.create({
     headerSpacer: {
         flex: 1,
     },
-    floatingRefreshButton: {
-        position: 'absolute',
-        bottom: 30,
-        alignSelf: 'center',
-        backgroundColor: '#1A1A1A',
-        borderRadius: 25,
-        paddingHorizontal: 24,
-        height: 50,
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        minWidth: 140,
-        zIndex: 10,
-    },
-    refreshBtnText: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#FFF',
-        textAlign: 'center',
-        includeFontPadding: false,
-        textAlignVertical: 'center',
-    },
-
-
     disabledButton: {
         opacity: 0.6,
     },
+    todayBg: {
+        backgroundColor: theme.colors.todayBg,
+    },
+    floatingButtonContainer: theme.styles.floatingButtonContainer,
+    calendarRefreshButton: {
+        minWidth: 140,
+    },
+
+
+
+
 
 
     content: {
@@ -309,6 +279,13 @@ const styles = StyleSheet.create({
         paddingBottom: 4,
         borderBottomWidth: 1,
         borderBottomColor: '#F0F0F0',
+    },
+    loadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(255,255,255,0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
     },
     divider: {
         height: 12,

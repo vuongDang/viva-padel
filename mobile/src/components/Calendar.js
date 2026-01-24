@@ -213,8 +213,9 @@ const styles = StyleSheet.create({
         color: theme.colors.text,
     },
     todayContainer: {
-        backgroundColor: theme.colors.primary,
+        backgroundColor: theme.colors.calendarPrimary,
     },
+
     todayText: {
         color: 'white',
     }

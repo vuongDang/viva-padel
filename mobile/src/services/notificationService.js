@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import { fetchWithTimeout } from '../utils/apiUtils';
 
 const LAST_TOKEN_KEY = 'viva_padel_last_notif_token';
 const LAST_USER_KEY = 'viva_padel_last_notif_user';
@@ -112,7 +113,7 @@ export const NotificationService = {
 
         try {
             console.log('[NotificationService] Registering device with server...', { deviceId, pushToken, userEmail });
-            const response = await fetch(`${API_URL}/register-device`, {
+            const response = await fetchWithTimeout(`${API_URL}/register-device`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

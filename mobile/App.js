@@ -9,6 +9,7 @@ import TimeSlotsScreen from './src/screens/TimeSlotsScreen';
 
 import CustomDrawer from './src/components/CustomDrawer';
 import * as Notifications from 'expo-notifications';
+import { fetchWithTimeout } from './src/utils/apiUtils';
 import { NotificationService } from './src/services/notificationService';
 import { AuthService } from './src/services/authService';
 import { AlarmService } from './src/services/alarmService';
@@ -32,6 +33,7 @@ export default function App() {
   const [calendarTimestamp, setCalendarTimestamp] = useState(null);
   const [reservationsLoading, setReservationsLoading] = useState(false);
   const hasFetchedReservations = useRef(false);
+  const isInitialAlarmsLoaded = useRef(false);
 
   const fetchReservations = useCallback(async (force = false) => {
     if (!force && hasFetchedReservations.current) {
@@ -44,7 +46,7 @@ export default function App() {
     const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/calendar`;
 
     try {
-      const response = await fetch(apiUrl, {
+      const response = await fetchWithTimeout(apiUrl, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -76,10 +78,25 @@ export default function App() {
     try {
       const data = await AuthService.getUserInfo(token);
       if (data.alarms) {
-        const mapped = AlarmService.mapServerAlarmsToMobile(data.alarms);
-        setAlarms(mapped);
-        AlarmService.saveLocalAlarms(mapped); // Persistence
-        console.log('[App] Fetched and mapped alarms:', mapped.length);
+        const serverMapped = AlarmService.mapServerAlarmsToMobile(data.alarms);
+
+        setAlarms(prevAlarms => {
+          // Merging logic: Server alarms take precedence on name match
+          // We use a Map to handle duplicates by name easily
+          const alarmMap = new Map();
+
+          // 1. Load local ones first
+          prevAlarms.forEach(a => alarmMap.set(a.name, a));
+
+          // 2. Overwrite or add with server ones
+          serverMapped.forEach(sa => {
+            alarmMap.set(sa.name, sa);
+          });
+
+          const merged = Array.from(alarmMap.values());
+          console.log('[App] Merged alarms with server precedence. Total:', merged.length);
+          return merged;
+        });
       }
     } catch (error) {
       console.error('[App] Failed to fetch user info:', error);
@@ -117,6 +134,9 @@ export default function App() {
       if (localAlarms?.length > 0) setAlarms(localAlarms);
       if (localResults) setMatchedResults(localResults);
 
+      // Signal that we've finished the initial load from storage
+      isInitialAlarmsLoaded.current = true;
+
       // 2. Check for existing session
       const token = await AuthService.getToken();
       const email = await AuthService.getEmail();
@@ -125,7 +145,11 @@ export default function App() {
         console.log('[App] Authenticated user found:', email);
         fetchUserInfo(token, email);
       }
+
+      // 3. Pre-fetch reservations for matching in TimeSlotsScreen
+      fetchReservations(false);
     };
+
     setup();
 
     const cleanup = NotificationService.initListeners(
@@ -149,6 +173,14 @@ export default function App() {
 
     return cleanup;
   }, [fetchUserInfo]);
+
+  // Centralized Auto-Save for Alarms
+  useEffect(() => {
+    if (isInitialAlarmsLoaded.current) {
+      console.log('[App] Auto-saving alarms to local storage...', alarms.length);
+      AlarmService.saveLocalAlarms(alarms);
+    }
+  }, [alarms]);
 
   // Handle push token registration/updates
   useEffect(() => {
@@ -194,10 +226,7 @@ export default function App() {
     setUser(null);
     setAlarms([]);
     setMatchedResults({});
-    await Promise.all([
-      AlarmService.saveLocalAlarms([]),
-      AlarmService.saveMatchedResults({})
-    ]);
+    await AlarmService.saveMatchedResults({});
   };
 
   const openDrawer = () => setDrawerVisible(true);
@@ -221,15 +250,8 @@ export default function App() {
 
   const handleUpdateAlarms = async (newAlarms) => {
     setAlarms(newAlarms);
-    await AlarmService.saveLocalAlarms(newAlarms);
-    if (user) {
-      try {
-        await AlarmService.syncAlarms(newAlarms);
-      } catch (error) {
-        console.error('[App] Failed to sync alarms on change:', error);
-      }
-    }
   };
+
 
   const handleSaveAlarm = async (alarmConfig) => {
     let finalName = alarmConfig.name;
@@ -296,6 +318,13 @@ export default function App() {
     });
   };
 
+  const handleSyncAlarms = async (alarmsToSync, weeksAhead) => {
+    if (!user) throw new Error("Veuillez vous connecter pour synchroniser vos créneaux.");
+    return await AlarmService.syncAlarms(alarmsToSync || alarms, weeksAhead);
+  };
+
+
+
   return (
     <SafeAreaProvider>
       <NavigationContainer ref={navigationRef} onStateChange={onStateChange}>
@@ -348,12 +377,19 @@ export default function App() {
                 openDrawer={openDrawer}
                 user={user}
                 alarms={alarms}
+                availabilities={availabilities}
+                calendarTimestamp={calendarTimestamp}
                 matchedResults={matchedResults}
+                onRefresh={() => fetchReservations(true)}
+                loading={reservationsLoading}
+
                 onSaveAlarm={handleSaveAlarm}
                 onDeleteAlarm={handleDeleteAlarm}
                 onToggleAlarm={handleToggleAlarm}
                 onClearMatchedResult={handleClearMatchedResult}
+                onSync={handleSyncAlarms}
                 onLogin={handleLogin}
+
                 onLogout={handleLogout}
               />
 
@@ -369,6 +405,7 @@ export default function App() {
         currentScreen={currentScreen}
         user={user}
         onLogout={handleLogout}
+        onLogin={handleLogin}
         onSimulateMatch={handleIncomingMatchedResults}
       />
 

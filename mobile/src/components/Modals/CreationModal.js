@@ -53,7 +53,7 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, in
                     timeToMinutes(initialData.startTime || "17:30"),
                     timeToMinutes(initialData.endTime || "22:00"),
                 ]);
-                setSlotDurations(initialData.slotDurations || [3600, 5400, 7200]);
+                setSlotDurations(initialData.slotDurations || [5400, 7200]);
             } else {
                 // Reset to defaults for new creation
                 setName("");
@@ -64,7 +64,7 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, in
                     timeToMinutes("17:30"),
                     timeToMinutes("22:00"),
                 ]);
-                setSlotDurations([3600, 5400, 7200]);
+                setSlotDurations([5400, 7200]);
             }
         }
     }, [visible, initialData]);
@@ -202,11 +202,11 @@ export default function CreationModal({ visible, onClose, onCreate, onDelete, in
 
 
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Durées (h)</Text>
+                            <Text style={styles.label}>Durées</Text>
                             <View style={styles.row}>
                                 {[
                                     { label: "1h", value: 3600 },
-                                    { label: "1.5h", value: 5400 },
+                                    { label: "1h30", value: 5400 },
                                     { label: "2h", value: 7200 }
                                 ].map((dur) => (
                                     <TouchableOpacity

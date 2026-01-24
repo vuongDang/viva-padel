@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import LoginModal from './Modals/LoginModal';
+import LogoutConfirmationModal from './Modals/LogoutConfirmationModal';
 
 export default function AuthBadge({ user, onLogin, onLogout }) {
     const [loginModalVisible, setLoginModalVisible] = useState(false);
+    const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
     const handleAuthPress = () => {
         if (user) {
-            onLogout();
+            setLogoutModalVisible(true);
         } else {
             setLoginModalVisible(true);
         }
@@ -33,6 +35,15 @@ export default function AuthBadge({ user, onLogin, onLogout }) {
                 visible={loginModalVisible}
                 onClose={() => setLoginModalVisible(false)}
                 onLogin={onLogin}
+            />
+
+            <LogoutConfirmationModal
+                visible={logoutModalVisible}
+                onClose={() => setLogoutModalVisible(false)}
+                onConfirm={() => {
+                    setLogoutModalVisible(false);
+                    onLogout();
+                }}
             />
         </>
     );

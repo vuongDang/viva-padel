@@ -63,17 +63,10 @@ export default function HomeScreen({ navigation, openDrawer, user, onLogout, onL
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: theme.colors.background,
   },
-  header: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    backgroundColor: '#FFF',
-  },
+  header: theme.styles.header,
+
   menuButton: {
     width: 40,
     height: 40,
@@ -108,8 +101,9 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: theme.colors.text,
   },
+
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -119,23 +113,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   actionCard: {
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
+    backgroundColor: theme.colors.card,
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    ...theme.shadows.small,
   },
   actionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
   },
   actionDesc: {
-    fontSize: 13,
-    color: '#888',
+    fontSize: 14,
+    color: theme.colors.textSecondary,
     marginTop: 4,
   },
+
 
 });
 

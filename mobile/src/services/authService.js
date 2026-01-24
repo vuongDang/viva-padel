@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { fetchWithTimeout } from '../utils/apiUtils';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 const TOKEN_KEY = 'viva_padel_auth_token';
@@ -11,7 +12,7 @@ export const AuthService = {
      */
     signup: async (email) => {
         try {
-            const response = await fetch(`${API_URL}/signup`, {
+            const response = await fetchWithTimeout(`${API_URL}/signup`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -46,7 +47,7 @@ export const AuthService = {
      */
     login: async (email) => {
         try {
-            const response = await fetch(`${API_URL}/login`, {
+            const response = await fetchWithTimeout(`${API_URL}/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -110,7 +111,7 @@ export const AuthService = {
      */
     getUserInfo: async (token) => {
         try {
-            const response = await fetch(`${API_URL}/user`, {
+            const response = await fetchWithTimeout(`${API_URL}/user`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,

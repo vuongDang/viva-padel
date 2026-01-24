@@ -6,26 +6,45 @@ import LoginModal from '../components/Modals/LoginModal';
 import AvailabilityModal from '../components/Modals/AvailabilityModal';
 import BookingModal from '../components/Modals/BookingModal';
 import { AlarmService } from '../services/alarmService';
+import { matchesFilter } from '../utils/filterUtils';
 import AuthBadge from '../components/AuthBadge';
+import RefreshNote from '../components/RefreshNote';
+import FloatingRefreshButton from '../components/FloatingRefreshButton';
+import NotificationActivationModal from '../components/Modals/NotificationActivationModal';
+import { theme } from '../styles/theme';
+
+
+
+
+
 
 
 const WEEKDAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
-export default function TimeSlotsScreen({ navigation, route, openDrawer, user, alarms, matchedResults, onSaveAlarm, onDeleteAlarm, onToggleAlarm, onClearMatchedResult, onLogin, onLogout }) {
+export default function TimeSlotsScreen({ navigation, route, openDrawer, user, alarms, availabilities, calendarTimestamp, matchedResults, onSaveAlarm, onDeleteAlarm, onToggleAlarm, onClearMatchedResult, onSync, onLogin, onLogout, onRefresh, loading }) {
+
+
+
+
 
 
     const [createModalVisible, setCreateModalVisible] = useState(false);
     const [editingAlarm, setEditingAlarm] = useState(null);
 
 
-    // Modals state for matched results
     const [availModalVisible, setAvailModalVisible] = useState(false);
     const [selectedDate, setSelectedDate] = useState(null);
     const [selectedDayAvail, setSelectedDayAvail] = useState(null);
     const [selectedAlarm, setSelectedAlarm] = useState(null);
     const [bookingModalVisible, setBookingModalVisible] = useState(false);
+    const [notifModalVisible, setNotifModalVisible] = useState(false);
+
+    // Logic for hiding results (UI only, default is visible)
+    const [hiddenAlarms, setHiddenAlarms] = useState(new Set());
+
 
     const [selectedSlot, setSelectedSlot] = useState(null);
+
 
     const formatDate = (dateStr) => {
         const date = new Date(dateStr);
@@ -73,9 +92,13 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
         setCreateModalVisible(true);
     };
 
-    const toggleAlarm = (id) => {
-
-        onToggleAlarm(id);
+    const toggleVisibility = (id) => {
+        setHiddenAlarms(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
     };
 
 
@@ -105,6 +128,13 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
 
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
+                <TouchableOpacity
+                    style={[styles.button, styles.primaryButton, { marginBottom: 16 }]}
+                    onPress={openCreateModal}
+                >
+                    <Text style={styles.primaryButtonText}>Créer un créneau</Text>
+                </TouchableOpacity>
+
                 {alarms.length === 0 ? (
                     <View style={styles.emptyContent}>
                         <Text style={styles.title}>Aucun créneau configuré</Text>
@@ -114,31 +144,87 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
                 ) : (
                     <View style={styles.alarmList}>
                         {alarms.map((alarm) => (
+
+
                             <View key={alarm.id} style={styles.alarmCard}>
                                 <TouchableOpacity
-                                    style={styles.alarmInfo}
-                                    onPress={() => openEditModal(alarm)}
+
+                                    style={styles.deleteButton}
+                                    onPress={() => onDeleteAlarm(alarm.id)}
                                 >
-                                    <View style={styles.alarmHeader}>
-                                        <Text style={styles.alarmName}>{alarm.name}</Text>
+                                    <View style={styles.deleteIconContainer}>
+                                        <Text style={styles.deleteIconText}>×</Text>
                                     </View>
-                                    <Text style={styles.alarmDetails}>
-                                        {formatDays(alarm.weekdays)}
-                                    </Text>
-                                    <Text style={styles.alarmDetails}>
-                                        {alarm.startTime} — {alarm.endTime}
-                                    </Text>
                                 </TouchableOpacity>
 
-                                <View style={styles.alarmRightActions}>
-                                    <Switch
-                                        value={alarm.activated}
-                                        onValueChange={() => toggleAlarm(alarm.id)}
-                                        trackColor={{ false: "#E0E0E0", true: "#1A1A1A" }}
-                                    />
+                                <View style={styles.alarmMainContent}>
+                                    <TouchableOpacity
+                                        style={styles.alarmInfo}
+                                        onPress={() => openEditModal(alarm)}
+                                    >
+                                        <View style={styles.alarmHeader}>
+                                            <Text style={styles.alarmName}>{alarm.name}</Text>
+                                        </View>
+                                        <Text style={styles.alarmDetails}>
+                                            {formatDays(alarm.weekdays)}
+                                        </Text>
+                                        <Text style={styles.alarmDetails}>
+                                            {alarm.startTime} — {alarm.endTime}
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                    <View style={styles.alarmRightActions}>
+                                        <Switch
+                                            value={!hiddenAlarms.has(alarm.id)}
+                                            onValueChange={() => toggleVisibility(alarm.id)}
+                                            trackColor={{ false: "#E0E0E0", true: "#1A1A1A" }}
+                                        />
+                                    </View>
                                 </View>
 
-                                {matchedResults && matchedResults[alarm.name] && (
+
+                                {/* Local Availability Matches */}
+                                {!hiddenAlarms.has(alarm.id) && (() => {
+                                    if (!availabilities) return null;
+                                    const matchingDays = Object.entries(availabilities).filter(([dateStr, dayAvail]) => {
+                                        if (!dayAvail?.["hydra:member"]) return false;
+                                        return dayAvail["hydra:member"].some(playground =>
+                                            playground.activities.some(activity =>
+                                                activity.slots.some(slot => matchesFilter(slot, playground, dateStr, alarm.id, alarms))
+                                            )
+                                        );
+                                    });
+
+                                    if (matchingDays.length === 0) {
+                                        return (
+                                            <View style={styles.localMatchesSection}>
+                                                <Text style={styles.emptyMatchesText}>Aucune disponibilité trouvée</Text>
+                                            </View>
+                                        );
+                                    }
+
+                                    return (
+                                        <View style={styles.localMatchesSection}>
+
+                                            <View style={styles.daysContainer}>
+                                                {matchingDays.map(([dateStr, dayAvail]) => (
+                                                    <TouchableOpacity
+                                                        key={dateStr}
+                                                        style={[styles.dayChip, styles.localDayChip]}
+                                                        onPress={() => handleDateClick(dateStr, dayAvail, alarm)}
+                                                    >
+                                                        <Text style={[styles.dayText, styles.localDayText]}>{formatDate(dateStr)}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+
+                                        </View>
+                                    );
+
+                                })()}
+
+
+                                {!hiddenAlarms.has(alarm.id) && matchedResults && matchedResults[alarm.name] && (
                                     <View style={styles.notifSection}>
                                         <View style={styles.notifHeader}>
                                             <Text style={styles.notifTitle}>Disponibilités trouvées :</Text>
@@ -146,45 +232,34 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
                                                 <Text style={styles.notifClear}>Effacer</Text>
                                             </TouchableOpacity>
                                         </View>
-                                        {Object.entries(matchedResults[alarm.name]).map(([date, dayPlan]) => {
-                                            const slots = getAvailableSlots(dayPlan, alarm.slotDurations);
-                                            if (slots.length === 0) return null;
-
-                                            return (
+                                        <View style={styles.daysContainer}>
+                                            {Object.entries(matchedResults[alarm.name]).map(([date, dayPlan]) => (
                                                 <TouchableOpacity
                                                     key={date}
-                                                    style={styles.dateSection}
+                                                    style={styles.dayChip}
                                                     onPress={() => handleDateClick(date, dayPlan, alarm)}
                                                 >
-
-                                                    <Text style={styles.dateLabel}>{formatDate(date)} :</Text>
-                                                    <View style={styles.slotsGrid}>
-                                                        {slots.map((s, idx) => (
-                                                            <View key={idx} style={styles.slotTag}>
-                                                                <Text style={styles.slotText}>{s.time}</Text>
-                                                            </View>
-                                                        ))}
-                                                    </View>
+                                                    <Text style={styles.dayText}>{formatDate(date)}</Text>
                                                 </TouchableOpacity>
-                                            );
-                                        })}
+                                            ))}
+                                        </View>
+
                                     </View>
                                 )}
+
+
                             </View>
                         ))}
                     </View>
                 )}
 
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity
-                        style={[styles.button, styles.primaryButton]}
-                        onPress={openCreateModal}
-                    >
-                        <Text style={styles.primaryButtonText}>Créer un créneau</Text>
-
-                    </TouchableOpacity>
-                </View>
+                {alarms.length > 0 && (
+                    <RefreshNote timestamp={calendarTimestamp} style={styles.footerNoteAdjust} />
+                )}
             </ScrollView>
+
+
+
 
             <CreationModal
                 visible={createModalVisible}
@@ -202,8 +277,6 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
             />
 
 
-            {/* AuthBadge handles its own login modal internally */}
-
 
             <AvailabilityModal
                 visible={availModalVisible}
@@ -213,10 +286,10 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
                 onSlotClick={handleSlotClick}
                 filterFn={(slot, playground) => {
                     if (!selectedAlarm) return true;
-                    const durations = selectedAlarm.slotDurations || [3600, 5400, 7200];
-                    return slot.prices.some(p => p.bookable && durations.includes(p.duration));
+                    return matchesFilter(slot, playground, selectedDate, selectedAlarm.id, alarms);
                 }}
             />
+
 
 
             <BookingModal
@@ -224,24 +297,49 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
                 slotGroup={selectedSlot}
                 onClose={() => setBookingModalVisible(false)}
             />
-        </SafeAreaView>
+
+            {alarms.length > 0 && (
+                <View style={styles.floatingButtonsContainer}>
+                    <FloatingRefreshButton
+                        onPress={onRefresh}
+                        loading={loading}
+                        style={styles.flexButton}
+                    />
+
+                    <TouchableOpacity
+                        style={styles.notifFloatingButton}
+                        onPress={() => setNotifModalVisible(true)}
+                    >
+                        <Text
+                            style={styles.notifFloatingButtonText}
+                        >
+                            Activer les notifications
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+
+
+            <NotificationActivationModal
+                visible={notifModalVisible}
+                onClose={() => setNotifModalVisible(false)}
+                alarms={alarms}
+                onToggleAlarm={onToggleAlarm}
+                onSync={onSync}
+            />
+        </SafeAreaView >
+
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFAFA',
+        backgroundColor: theme.colors.background,
     },
-    header: {
-        height: 56,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-        backgroundColor: '#FFF',
-    },
+    header: theme.styles.header,
+
     menuButton: {
         width: 40,
         height: 40,
@@ -284,14 +382,17 @@ const styles = StyleSheet.create({
         marginBottom: 32,
     },
     alarmCard: {
-        flexDirection: 'row',
         backgroundColor: '#FFF',
         padding: 16,
         borderRadius: 12,
         marginBottom: 12,
         borderWidth: 1,
         borderColor: '#E8E8E8',
-        flexWrap: 'wrap', // Allow notification data to wrap
+        position: 'relative', // For absolute delete button
+    },
+    alarmMainContent: {
+        flexDirection: 'row',
+        alignItems: 'center', // Center switch vertically relative to info
     },
     alarmInfo: {
         flex: 1,
@@ -300,10 +401,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 6,
+        marginBottom: 4,
         paddingRight: 16,
     },
-
     alarmName: {
         fontSize: 16,
         fontWeight: '600',
@@ -315,8 +415,37 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     alarmRightActions: {
-        marginLeft: 16,
+        paddingLeft: 12,
+        justifyContent: 'center',
     },
+    deleteButton: {
+        position: 'absolute',
+        top: -8,
+        right: -8,
+        zIndex: 10,
+    },
+    deleteIconContainer: {
+        backgroundColor: '#FFF',
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 1,
+        elevation: 1,
+    },
+    deleteIconText: {
+        fontSize: 18,
+        color: '#999',
+        fontWeight: '400',
+        lineHeight: 20,
+    },
+
     buttonContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
@@ -402,4 +531,71 @@ const styles = StyleSheet.create({
         color: '#137333',
         fontWeight: '500',
     },
+    localMatchesSection: {
+        width: '100%',
+        marginTop: 4,
+    },
+    daysContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 8,
+    },
+    dayChip: {
+        backgroundColor: '#E6F4EA',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: '#CEEAD6',
+    },
+    dayText: {
+        fontSize: 12,
+        color: '#137333',
+        fontWeight: '600',
+    },
+    localDayChip: {
+        backgroundColor: '#E8F0FE',
+        borderColor: '#D2E3FC',
+    },
+    localDayText: {
+        color: '#1A73E8',
+    },
+    emptyMatchesText: {
+        fontSize: 12,
+        color: '#999',
+        fontStyle: 'italic',
+        marginTop: 4,
+    },
+    footerNoteAdjust: {
+
+        marginTop: 0,
+        marginBottom: 20,
+    },
+    floatingButtonsContainer: theme.styles.floatingButtonContainer,
+    notifFloatingButton: {
+        backgroundColor: theme.colors.primary,
+        borderRadius: 25,
+        paddingHorizontal: 12,
+        height: 52,
+        justifyContent: 'center',
+        alignItems: 'center',
+        ...theme.shadows.medium,
+        flex: 1,
+        maxWidth: 220,
+    },
+    flexButton: {
+        flex: 1,
+        maxWidth: 220,
+        height: 52,
+    },
+    notifFloatingButtonText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: theme.colors.white,
+        textAlign: 'center',
+    },
+
+
+
 });

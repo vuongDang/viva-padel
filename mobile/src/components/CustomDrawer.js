@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions, Pressable } from 'react-native';
+import LogoutConfirmationModal from './Modals/LogoutConfirmationModal';
+import LoginModal from './Modals/LoginModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.7;
 
-export default function CustomDrawer({ visible, onClose, onNavigate, currentScreen, onLogout, user, onSimulateMatch }) {
+export default function CustomDrawer({ visible, onClose, onNavigate, currentScreen, onLogout, onLogin, user, onSimulateMatch }) {
     const insets = useSafeAreaInsets();
+    const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+    const [loginModalVisible, setLoginModalVisible] = useState(false);
 
     const menuItems = [
         { id: 'Home', label: 'Accueil' },
@@ -119,13 +123,37 @@ export default function CustomDrawer({ visible, onClose, onNavigate, currentScre
 
                             <TouchableOpacity
                                 style={styles.logoutItem}
-                                onPress={() => {
-                                    onLogout();
-                                    onClose();
-                                }}
+                                onPress={() => setLogoutModalVisible(true)}
                             >
                                 <Text style={styles.logoutLabel}>Déconnexion</Text>
                             </TouchableOpacity>
+
+                            <LogoutConfirmationModal
+                                visible={logoutModalVisible}
+                                onClose={() => setLogoutModalVisible(false)}
+                                onConfirm={() => {
+                                    setLogoutModalVisible(false);
+                                    onLogout();
+                                    onClose();
+                                }}
+                            />
+                        </View>
+                    )}
+
+                    {!user && (
+                        <View style={styles.logoutSection}>
+                            <TouchableOpacity
+                                style={styles.logoutItem}
+                                onPress={() => setLoginModalVisible(true)}
+                            >
+                                <Text style={[styles.logoutLabel, { color: '#1A1A1A' }]}>Connexion</Text>
+                            </TouchableOpacity>
+
+                            <LoginModal
+                                visible={loginModalVisible}
+                                onClose={() => setLoginModalVisible(false)}
+                                onLogin={onLogin}
+                            />
                         </View>
                     )}
 

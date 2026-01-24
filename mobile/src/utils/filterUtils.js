@@ -25,7 +25,10 @@ export function matchesFilter(slot, playground, dateStr, currentAlarmId, alarms)
     if (!alarm.weekdays.includes(dayOfWeek)) return false;
 
     // 3. Time range check
-    if (slot.startAt < alarm.startTime || slot.startAt > alarm.endTime) return false;
+    const startAt = slot.startAt || slot.start_at;
+    if (startAt < alarm.startTime || startAt > alarm.endTime) return false;
+
+
 
     // 4. Duration check
     const allowedDurations = alarm.slotDurations || [3600, 5400, 7200];
