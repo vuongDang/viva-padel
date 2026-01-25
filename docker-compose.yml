@@ -19,5 +19,4 @@ services:
     environment:
       - DATABASE_URL=sqlite:///usr/local/share/viva-padel-server/data/viva_padel.db
       - PADEL_MOCK_DATA=/usr/local/share/viva-padel-server/mock-data
-    entrypoint: ["/bin/sh", "-c", "viva-padel-server || tail -f /dev/null"]
     restart: always
