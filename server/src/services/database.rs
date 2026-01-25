@@ -168,9 +168,9 @@ impl DataBaseService for SQLiteDB {
 
 impl SQLiteDB {
     pub async fn new() -> Result<Self, DBError> {
-        dotenvy::dotenv().map_err(|e| DBError::Env(e.to_string()))?;
         let database_url = std::env::var("DATABASE_URL")
             .map_err(|_| DBError::Env("DATABASE_URL not set".into()))?;
+        tracing::info!("db url: {:?}", &database_url);
         let pool = SqlitePool::connect(&database_url).await?;
 
         // Run migrations

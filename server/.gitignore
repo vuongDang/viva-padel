@@ -1,2 +1,2 @@
-.env
-viva_padel.db*
+data/.env
+data/viva_padel.db*

@@ -10,9 +10,14 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - /opt/boum/viva-padel-data/.env
+      - ${DATA_PATH:-./server}/.env
     volumes:
-      - /opt/boum/viva-padel-data:/usr/local/share/viva-padel-server/data
+      # Mount database for persistent data
+      - ${DATA_PATH:-./server/data}:/usr/local/share/viva-padel-server/data
+      # Mount mock data for testing
+      - ./crates/testcases/data:/usr/local/share/viva-padel-server/mock-data
     environment:
-      - PADEL_MOCK_DATA=/usr/local/share/viva-padel-server/data
+      - DATABASE_URL=sqlite:///usr/local/share/viva-padel-server/data/viva_padel.db
+      - PADEL_MOCK_DATA=/usr/local/share/viva-padel-server/mock-data
+    entrypoint: ["/bin/sh", "-c", "viva-padel-server || tail -f /dev/null"]
     restart: always

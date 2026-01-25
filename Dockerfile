@@ -22,7 +22,7 @@ RUN groupadd --system --gid 1001 padelgroup && \
 
 USER padeluser
 
-COPY --chown=padeluser:padelgroup ./crates/testcases/data /usr/local/share/viva-padel-server/data
+# Copy data for mock testing
 COPY --from=builder /usr/src/padel/target/release/viva-padel-server /usr/local/bin/
 
 EXPOSE 3000

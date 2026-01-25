@@ -15,8 +15,6 @@ impl DataBaseService for MockDB {
 
 impl MockDB {
     pub async fn new() -> Result<Self, DBError> {
-        dotenvy::dotenv().map_err(|e| DBError::Env(e.to_string()))?;
-
         let pool = SqlitePoolOptions::new().connect("sqlite::memory:").await?;
 
         // Run migrations

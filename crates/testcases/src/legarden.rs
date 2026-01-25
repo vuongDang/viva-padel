@@ -37,12 +37,13 @@ pub fn json_planning_simple_all_booked() -> String {
 
 // If PADEL_MOCK_DATA is set, pick the path from it else
 fn path_to_legarden_mock_data() -> PathBuf {
-    const PATH: [&'static str; 4] = ["crates", "testcases", "data", "legarden_server"];
     if let Ok(path) = std::env::var("PADEL_MOCK_DATA") {
-        PathBuf::from_str(&path)
+        let path = PathBuf::from_str(&path)
             .expect("Failed to find mock data directory")
-            .join("legarden_server")
+            .join("legarden_server");
+        path
     } else {
+        const PATH: [&'static str; 4] = ["crates", "testcases", "data", "legarden_server"];
         let mut path = PathBuf::from(std::env!("CARGO_WORKSPACE_DIR"));
         for path_element in PATH.iter() {
             path.push(path_element);

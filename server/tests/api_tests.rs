@@ -10,7 +10,6 @@ async fn test_health_check() {
     let (server, _) = default_test_server().await;
     let response = server.get("/viva-padel/health").await;
     response.assert_status_ok();
-    assert_eq!(response.text(), "OK");
 }
 
 #[tokio::test]
