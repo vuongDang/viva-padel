@@ -65,7 +65,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/alarms", post(update_alarms))
         .route("/user", get(get_user));
 
-    if cfg!(feature = "local_dev") {
+    #[cfg(feature = "local_dev")]
+    {
         api_router = api_router.route("/test-notification", get(test_notification))
     }
 

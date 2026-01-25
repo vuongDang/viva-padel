@@ -24,6 +24,7 @@ pub struct DayPlanningResponse {
     // search: Search,
 }
 
+#[cfg(feature = "local_dev")]
 impl DayPlanningResponse {
     pub fn simple_day() -> Self {
         serde_json::from_str(&testcases::legarden::json_planning_simple_day()).unwrap()
