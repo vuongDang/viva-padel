@@ -17,7 +17,7 @@ services:
       # Mount mock data for testing
       - ./crates/testcases/data:/usr/local/share/viva-padel-server/mock-data
     environment:
-      - DATABASE_URL=sqlite:///usr/local/share/viva-padel-server/data/viva_padel.db
+      - DATABASE_URL=sqlite:///usr/local/share/viva-padel-server/data/viva_padel.db?mode=rwc
       - PADEL_MOCK_DATA=/usr/local/share/viva-padel-server/mock-data
     entrypoint: ["/bin/sh", "-c", "viva-padel-server || tail -f /dev/null"]
     restart: always
