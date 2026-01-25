@@ -15,10 +15,12 @@ FROM debian:bookworm-slim
 
 WORKDIR /usr/local/share/viva-padel-server/data
 
-# Directory for the database
 RUN mkdir -p /usr/local/share/viva-padel-server/data
+# Directory for the database
 RUN groupadd --system --gid 1001 padelgroup && \
     useradd --system --uid 1001 --gid 1001 padeluser
+RUN chown -R 1001:1001 /usr/local/share/viva-padel-server
+RUN chmod -R 700 /usr/local/share/viva-padel-server
 
 USER padeluser
 
@@ -27,4 +29,4 @@ COPY --from=builder /usr/src/padel/target/release/viva-padel-server /usr/local/b
 
 EXPOSE 3000
 
-ENTRYPOINT ["viva-padel-server"]
+# ENTRYPOINT ["viva-padel-server"e
