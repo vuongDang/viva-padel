@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT alarm_json FROM alarms WHERE user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "alarm_json",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c348afad68a96e5e928074223f381fde51bc9767c6c348306db58796f64ba580"
+}

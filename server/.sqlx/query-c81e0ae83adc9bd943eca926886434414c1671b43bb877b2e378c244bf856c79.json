@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO devices (device_id, notif_token, user_id, last_seen) VALUES (?, ?, ?, CURRENT_TIMESTAMP)\n            ON CONFLICT(device_id)\n            DO UPDATE SET\n            user_id = excluded.user_id,\n            last_seen = CURRENT_TIMESTAMP,\n            notif_token = excluded.notif_token",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "c81e0ae83adc9bd943eca926886434414c1671b43bb877b2e378c244bf856c79"
+}

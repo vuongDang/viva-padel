@@ -12,7 +12,7 @@ services:
     env_file:
       - /opt/boum/viva-padel-data/.env
     volumes:
-      - /opt/boum/viva-padel-data/viva_padel.db:/usr/local/share/viva-padel-server/data/viva_padel.db
+      - /opt/boum/viva-padel-data:/usr/local/share/viva-padel-server/data
     environment:
       - PADEL_MOCK_DATA=/usr/local/share/viva-padel-server/data
     restart: always

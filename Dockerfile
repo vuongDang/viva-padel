@@ -7,6 +7,7 @@ WORKDIR /usr/src/padel
 COPY . .
 
 ARG CARGO_BUILD_FLAGS=""
+ENV SQLX_OFFLINE=true
 RUN cargo build --release ${CARGO_BUILD_FLAGS} --bin viva-padel-server
 
 # ---- Run the executable in a container ----

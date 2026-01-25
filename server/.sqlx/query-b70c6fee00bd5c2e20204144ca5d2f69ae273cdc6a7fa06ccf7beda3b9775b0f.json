@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO alarms (id, user_id, alarm_json, is_active, created_at) VALUES (?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "b70c6fee00bd5c2e20204144ca5d2f69ae273cdc6a7fa06ccf7beda3b9775b0f"
+}

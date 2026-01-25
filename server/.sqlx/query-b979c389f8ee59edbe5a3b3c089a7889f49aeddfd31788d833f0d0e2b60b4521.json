@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT user_id as \"user_id: Uuid\", alarm_json\n                FROM alarms\n                WHERE is_active is TRUE\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id: Uuid",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "alarm_json",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "b979c389f8ee59edbe5a3b3c089a7889f49aeddfd31788d833f0d0e2b60b4521"
+}

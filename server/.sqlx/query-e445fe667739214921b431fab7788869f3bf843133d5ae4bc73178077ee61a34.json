@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT notif_token FROM devices WHERE user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "notif_token",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e445fe667739214921b431fab7788869f3bf843133d5ae4bc73178077ee61a34"
+}
