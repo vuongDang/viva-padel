@@ -1,9 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
-use testcases::legarden::{json_planning_simple_all_booked, json_planning_simple_day};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use viva_padel_server::mock::simple_availabilities;
 use viva_padel_server::{AppState, Calendar, api::create_router, run};
 
 #[tokio::main]
@@ -17,34 +14,40 @@ async fn main() {
 
     // For production
     #[cfg(not(feature = "local_dev"))]
-    let db = Arc::new(
-        viva_padel_server::services::SQLiteDB::new()
-            .await
-            .expect("Failed to setup database"),
-    );
-    #[cfg(not(feature = "local_dev"))]
-    let legarden = Arc::new(viva_padel_server::services::LeGardenService);
-    #[cfg(not(feature = "local_dev"))]
-    let notifications = Arc::new(viva_padel_server::services::ExpoNotificationsService);
+    let (legarden, notifications, db) = {
+        let legarden = Arc::new(viva_padel_server::services::LeGardenServer);
+        let notifications = Arc::new(viva_padel_server::services::ExpoNotificationsService);
+        let db = Arc::new(
+            viva_padel_server::services::SQLiteDB::new()
+                .await
+                .expect("Failed to setup database"),
+        );
+        (legarden, notifications, db)
+    };
 
     // For testing
     #[cfg(feature = "local_dev")]
-    let db = Arc::new(
-        viva_padel_server::services::SQLiteDB::new()
-            .await
-            .expect("Failed to setup database"),
-    );
-    #[cfg(feature = "local_dev")]
-    let avail_free = simple_availabilities(3, json_planning_simple_day());
-    let avail_booked = simple_availabilities(3, json_planning_simple_all_booked());
-    let legarden = Arc::new(viva_padel_server::mock::MockLeGardenService::new(
-        vec![avail_booked, avail_free],
-        Duration::from_secs(10),
-    ));
-    // let legarden = Arc::new(viva_padel_server::mock::MockLeGardenService::default());
-    #[cfg(feature = "local_dev")]
-    let notifications = Arc::new(viva_padel_server::mock::MockNotificationsService::default());
-    // let notifications = Arc::new(viva_padel_server::services::ExpoNotificationsService);
+    let (legarden, notifications, db) = {
+        use std::time::Duration;
+        use testcases::legarden::{json_planning_simple_all_booked, json_planning_simple_day};
+        use viva_padel_server::mock::simple_availabilities;
+        let avail_free = simple_availabilities(3, json_planning_simple_day());
+        let avail_booked = simple_availabilities(3, json_planning_simple_all_booked());
+        let legarden = Arc::new(viva_padel_server::mock::MockLeGardenService::new(
+            vec![avail_booked, avail_free],
+            Duration::from_secs(10),
+        ));
+        // let legarden = Arc::new(viva_padel_server::mock::MockLeGardenService::default());
+        let notifications = Arc::new(viva_padel_server::mock::MockNotificationsService::default());
+        // let notifications = Arc::new(viva_padel_server::services::ExpoNotificationsService);
+        let db = Arc::new(
+            viva_padel_server::services::SQLiteDB::new()
+                .await
+                .expect("Failed to setup database"),
+        );
+        (legarden, notifications, db)
+    };
+
     let state = AppState {
         calendar: Arc::new(RwLock::new(Calendar::default())),
         db,
