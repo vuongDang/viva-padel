@@ -12,6 +12,8 @@ RUN cargo build --release ${CARGO_BUILD_FLAGS} --bin viva-padel-server
 # ---- Run the executable in a container ----
 FROM debian:bookworm-slim
 
+WORKDIR /app
+
 RUN groupadd --system --gid 1001 padelgroup && \
     useradd --system --uid 1001 --gid 1001 padeluser
 

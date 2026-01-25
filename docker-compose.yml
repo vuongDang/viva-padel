@@ -9,6 +9,10 @@ services:
     container_name: viva-padel-server
     ports:
       - "3000:3000"
+    env_file:
+      - /opt/boum/viva-padel-data/.env
+    volumes:
+      - /opt/boum/viva-padel-data/viva_padel.db:/usr/local/share/viva-padel-server/data/viva_padel.db
     environment:
       - PADEL_MOCK_DATA=/usr/local/share/viva-padel-server/data
     restart: always
