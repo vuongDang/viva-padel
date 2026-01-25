@@ -81,8 +81,16 @@ pub(crate) async fn get_calendar(State(state): State<AppState>) -> Json<crate::C
     Json(cal.clone())
 }
 
-pub(crate) async fn health_check() -> &'static str {
-    "OK"
+#[derive(Serialize)]
+pub struct HealthResponse {
+    name: &'static str,
+    version: &'static str,
+}
+pub(crate) async fn health_check() -> Json<HealthResponse> {
+    Json(HealthResponse {
+        name: env!("CARGO_PKG_NAME"),
+        version: env!("CARGO_PKG_VERSION"),
+    })
 }
 
 #[derive(Deserialize)]
