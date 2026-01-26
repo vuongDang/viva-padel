@@ -312,10 +312,7 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
                 dayAvail={selectedDayAvail}
                 onClose={() => setAvailModalVisible(false)}
                 onSlotClick={handleSlotClick}
-                filterFn={(slot, playground) => {
-                    if (!selectedAlarm) return true;
-                    return matchesFilter(slot, playground, selectedDate, selectedAlarm.id, alarms);
-                }}
+                filterFn={() => true}
             />
 
 

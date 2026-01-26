@@ -15,11 +15,17 @@ import { NotificationService } from './src/services/notificationService';
 import { AuthService } from './src/services/authService';
 import { AlarmService } from './src/services/alarmService';
 import { matchesFilter } from './src/utils/filterUtils';
+import { Logger } from './src/utils/logger';
+import DebugOverlay from './src/components/DebugOverlay';
+
+// Initialize logger to intercept console logs
+Logger.init();
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [debugVisible, setDebugVisible] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('Home');
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
@@ -68,33 +74,43 @@ export default function App() {
 
     const matches = { all: {} };
 
+    const filterDataTree = (alarmId, alarmData) => {
+      const filteredDays = {};
+      Object.entries(availabilities).forEach(([dateStr, dayAvail]) => {
+        if (!dayAvail?.["hydra:member"]) return;
+
+        const filteredPlaygrounds = [];
+        dayAvail["hydra:member"].forEach(playground => {
+          const filteredActivities = [];
+          playground.activities.forEach(activity => {
+            const filteredSlots = activity.slots.filter(slot =>
+              matchesFilter(slot, playground, dateStr, alarmId, alarmData)
+            );
+            if (filteredSlots.length > 0) {
+              filteredActivities.push({ ...activity, slots: filteredSlots });
+            }
+          });
+          if (filteredActivities.length > 0) {
+            filteredPlaygrounds.push({ ...playground, activities: filteredActivities });
+          }
+        });
+
+        if (filteredPlaygrounds.length > 0) {
+          filteredDays[dateStr] = {
+            ...dayAvail,
+            "hydra:member": filteredPlaygrounds
+          };
+        }
+      });
+      return filteredDays;
+    };
+
     // 1. Calculate matches for "all" (Tous)
-    Object.entries(availabilities).forEach(([dateStr, dayAvail]) => {
-      if (!dayAvail?.["hydra:member"]) return;
-      const hasMatch = dayAvail["hydra:member"].some(playground =>
-        playground.activities.some(activity =>
-          activity.slots.some(slot => matchesFilter(slot, playground, dateStr, 'all', []))
-        )
-      );
-      if (hasMatch) {
-        matches.all[dateStr] = dayAvail;
-      }
-    });
+    matches.all = filterDataTree('all', []);
 
     // 2. Calculate matches for each alarm
     alarms.forEach(alarm => {
-      matches[alarm.id] = {};
-      Object.entries(availabilities).forEach(([dateStr, dayAvail]) => {
-        if (!dayAvail?.["hydra:member"]) return;
-        const hasMatch = dayAvail["hydra:member"].some(playground =>
-          playground.activities.some(activity =>
-            activity.slots.some(slot => matchesFilter(slot, playground, dateStr, alarm.id, alarms))
-          )
-        );
-        if (hasMatch) {
-          matches[alarm.id][dateStr] = dayAvail;
-        }
-      });
+      matches[alarm.id] = filterDataTree(alarm.id, alarms);
     });
 
     return matches;
@@ -142,6 +158,21 @@ export default function App() {
   const fetchUserInfo = useCallback(async (token, email) => {
     try {
       const data = await AuthService.getUserInfo(token);
+
+      // Device registration sync check
+      if (data.devices) {
+        const currentId = await NotificationService.getInstallationId();
+        if (!data.devices.includes(currentId)) {
+          console.log('[App] Current device not found on server. Triggering re-registration sync...');
+          const pushToken = await NotificationService.registerForPushNotificationsAsync();
+          if (pushToken) {
+            await NotificationService.registerDeviceWithServer(pushToken, token, email, true);
+          }
+        } else {
+          console.log('[App] Device registration confirmed by server.');
+        }
+      }
+
       if (data.alarms) {
         const serverMapped = AlarmService.mapServerAlarmsToMobile(data.alarms);
 
@@ -467,6 +498,12 @@ export default function App() {
         onLogout={handleLogout}
         onLogin={handleLogin}
         onSimulateMatch={handleIncomingMatchedResults}
+        onShowDebug={() => setDebugVisible(true)}
+      />
+
+      <DebugOverlay
+        visible={debugVisible}
+        onClose={() => setDebugVisible(false)}
       />
 
       {/* Notification Content Modal */}

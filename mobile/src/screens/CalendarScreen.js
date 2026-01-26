@@ -211,21 +211,10 @@ export default function CalendarScreen({
             <AvailabilityModal
                 visible={availModalVisible}
                 dateStr={selectedDate}
-                dayAvail={selectedDate ? availabilities[selectedDate] : null}
+                dayAvail={selectedDate ? (filteredMatches[activeAlarmId]?.[selectedDate] || null) : null}
                 onClose={() => setAvailModalVisible(false)}
                 onSlotClick={onSlotClick}
-                filterFn={useCallback((slot, playground) => {
-                    const matchesForCurrent = filteredMatches[activeAlarmId] || {};
-                    const dayMatch = matchesForCurrent[selectedDate];
-                    if (!dayMatch) return false;
-
-                    // Deep check inside the day match
-                    return dayMatch["hydra:member"].some(p =>
-                        p.name === playground.name && p.activities.some(a =>
-                            a.slots.some(s => s.start_at === (slot.startAt || slot.start_at))
-                        )
-                    );
-                }, [selectedDate, activeAlarmId, filteredMatches])}
+                filterFn={useCallback(() => true, [])}
             />
 
 

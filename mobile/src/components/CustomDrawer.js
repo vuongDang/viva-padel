@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.7;
 
-const CustomDrawer = React.memo(({ visible, onClose, onNavigate, currentScreen, onLogout, onLogin, user, onSimulateMatch }) => {
+const CustomDrawer = React.memo(({ visible, onClose, onNavigate, currentScreen, onLogout, onLogin, user, onSimulateMatch, onShowDebug }) => {
     const insets = useSafeAreaInsets();
     const [logoutModalVisible, setLogoutModalVisible] = useState(false);
     const [loginModalVisible, setLoginModalVisible] = useState(false);
@@ -41,7 +41,15 @@ const CustomDrawer = React.memo(({ visible, onClose, onNavigate, currentScreen, 
 
                 <View style={[styles.drawer, { paddingTop: insets.top }]}>
                     <View style={styles.header}>
-                        <Text style={styles.headerTitle}>Viva Padel</Text>
+                        <TouchableOpacity
+                            activeOpacity={1}
+                            onLongPress={() => {
+                                onShowDebug();
+                                onClose();
+                            }}
+                        >
+                            <Text style={styles.headerTitle}>Viva Padel</Text>
+                        </TouchableOpacity>
                         {user?.email && (
                             <Text style={styles.userEmail} numberOfLines={1} ellipsizeMode="tail">
                                 {user.email}

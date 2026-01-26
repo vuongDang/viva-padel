@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "202771218812",
+    "project_id": "viva-padel",
+    "storage_bucket": "viva-padel.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:202771218812:android:c06acf3909a49318cb24f9",
+        "android_client_info": {
+          "package_name": "com.alobabo.vivapadel"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFpx5hu3BCbXDj2ORBIebLEX3ZKHy8BvM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
