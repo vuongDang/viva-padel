@@ -50,6 +50,9 @@ impl From<DBError> for ApiError {
             DBError::UserAlreadyExists(email) => {
                 ApiError::BadRequest(format!("L'utilisateur {} existe déjà", email))
             }
+            DBError::Sqlx(sqlx::Error::Database(err)) if err.code() == Some("787".into()) => {
+                ApiError::Unauthorized("Session invalide ou utilisateur supprimé (FK error)".into())
+            }
             _ => ApiError::Internal(error.to_string()),
         }
     }

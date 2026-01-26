@@ -5,6 +5,7 @@ use axum::{
 use crate::api::ApiError;
 use jsonwebtoken::{DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -51,7 +52,17 @@ where
         )
         .map_err(|e| ApiError::Unauthorized(format!("Invalid or expired token: {}", e)))?;
 
-        // 4. Return the authenticated user
+        // 4. Verify user exists in DB to prevent foreign key violations (e.g. after DB reset)
+        let user_id = Uuid::parse_str(&token_data.claims.sub)
+            .map_err(|e| ApiError::Unauthorized(format!("Invalid user ID in token: {}", e)))?;
+
+        state
+            .db
+            .get_user_by_id(user_id)
+            .await
+            .map_err(|_| ApiError::Unauthorized("Utilisateur non trouvé ou session expirée".into()))?;
+
+        // 5. Return the authenticated user
         Ok(AuthUser {
             user_id: token_data.claims.sub,
         })
