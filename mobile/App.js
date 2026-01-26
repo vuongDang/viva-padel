@@ -9,6 +9,7 @@ import TimeSlotsScreen from './src/screens/TimeSlotsScreen';
 
 import CustomDrawer from './src/components/CustomDrawer';
 import * as Notifications from 'expo-notifications';
+import * as Updates from 'expo-updates';
 import { fetchWithTimeout } from './src/utils/apiUtils';
 import { NotificationService } from './src/services/notificationService';
 import { AuthService } from './src/services/authService';
@@ -28,6 +29,31 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [alarms, setAlarms] = useState([]);
   const [matchedResults, setMatchedResults] = useState({});
+
+  useEffect(() => {
+    async function updateListener() {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          Alert.alert(
+            "Mise à jour disponible",
+            "Une nouvelle version de l'application est prête. Redémarrer maintenant pour l'utiliser ?",
+            [
+              { text: "Plus tard", style: "cancel" },
+              { text: "Redémarrer", onPress: () => Updates.reloadAsync() }
+            ]
+          );
+        }
+      } catch (error) {
+        console.log('[App] Error checking for updates:', error);
+      }
+    }
+
+    if (!__DEV__) {
+      updateListener();
+    }
+  }, []);
 
   // Lifted state for reservations data
   const [availabilities, setAvailabilities] = useState({});

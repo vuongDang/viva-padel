@@ -27,11 +27,6 @@ export default function HomeScreen({ navigation, openDrawer, user, onLogout, onL
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.welcomeSection}>
-          <Text style={styles.dateText}>{currentDate}</Text>
-          <Text style={styles.welcomeTitle}>{user ? `Bonjour ${user.email.split('@')[0]}` : 'Bonjour'}</Text>
-        </View>
-
         <Text style={styles.sectionTitle}>Actions</Text>
 
         <TouchableOpacity
@@ -88,20 +83,6 @@ const styles = StyleSheet.create({
 
   content: {
     padding: 20,
-  },
-  welcomeSection: {
-    marginBottom: 24,
-  },
-  dateText: {
-    fontSize: 13,
-    color: '#888',
-    textTransform: 'capitalize',
-    marginBottom: 4,
-  },
-  welcomeTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: theme.colors.text,
   },
 
   sectionTitle: {
