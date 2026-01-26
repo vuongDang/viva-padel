@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.7;
 
-export default function CustomDrawer({ visible, onClose, onNavigate, currentScreen, onLogout, onLogin, user, onSimulateMatch }) {
+const CustomDrawer = React.memo(({ visible, onClose, onNavigate, currentScreen, onLogout, onLogin, user, onSimulateMatch }) => {
     const insets = useSafeAreaInsets();
     const [logoutModalVisible, setLogoutModalVisible] = useState(false);
     const [loginModalVisible, setLoginModalVisible] = useState(false);
@@ -164,7 +164,9 @@ export default function CustomDrawer({ visible, onClose, onNavigate, currentScre
             </View>
         </Modal>
     );
-}
+});
+
+export default CustomDrawer;
 
 const styles = StyleSheet.create({
     overlay: {

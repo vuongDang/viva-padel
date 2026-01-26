@@ -67,6 +67,7 @@ EAS needs your Cloudflare secrets for the build. Use the following commands (sta
 ```bash
 eas env:create preview --name EXPO_PUBLIC_CF_ACCESS_CLIENT_ID --value "your-id" --type string --visibility secret
 eas env:create preview --name EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET --value "your-secret" --type string --visibility secret
+eas env:create preview --name EXPO_PUBLIC_API_URL --value "your-server-url" --type string --visibility sensitive
 ```
 
 ### 3. Build & Update Workflow

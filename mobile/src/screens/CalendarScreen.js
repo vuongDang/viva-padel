@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { StyleSheet, View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from "react-native-safe-area-context";
 import MonthNav from "../components/MonthNav";
 import FilterBar from "../components/FilterBar";
@@ -58,6 +59,18 @@ export default function CalendarScreen({
     // Load active selection on mount
     useEffect(() => {
         onInitialLoad();
+
+        const loadSavedTag = async () => {
+            try {
+                const savedTag = await AsyncStorage.getItem('last_selected_tag');
+                if (savedTag) {
+                    setActiveAlarmId(savedTag === "all" ? "all" : savedTag);
+                }
+            } catch (err) {
+                console.error("Failed to load saved tag:", err);
+            }
+        };
+        loadSavedTag();
     }, []);
 
 
@@ -68,6 +81,19 @@ export default function CalendarScreen({
     const handleNextMonth = () => {
         setCurrentMonthDate(new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() + 1, 1));
     };
+
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('blur', async () => {
+            try {
+                // Save the current active tag when leaving the screen
+                await AsyncStorage.setItem('last_selected_tag', activeAlarmId.toString());
+            } catch (err) {
+                console.error("Failed to save tag on blur:", err);
+            }
+        });
+
+        return unsubscribe;
+    }, [navigation, activeAlarmId]);
 
     const handleSaveAlarmInternal = async (newAlarm) => {
         const savedAlarm = await onSaveAlarm(newAlarm);
@@ -85,7 +111,7 @@ export default function CalendarScreen({
 
 
 
-    const handleAlarmSelect = (id) => {
+    const handleAlarmSelect = async (id) => {
         if (id === "all") {
             setActiveAlarmId("all");
             return;

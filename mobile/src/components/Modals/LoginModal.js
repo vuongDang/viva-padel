@@ -46,6 +46,14 @@ export default function LoginModal({ visible, onClose, onLogin }) {
         }
     };
 
+    const showEmailInfo = () => {
+        Alert.alert(
+            "Pourquoi l'email ?",
+            "Votre email permet de synchroniser vos alertes et de vous notifier dès qu'un créneau correspondant à vos critères se libère. Dans des futures versions, vous pourrez réserver vos terrains directement depuis l'application avec le compte crée dans l'application officielle. Pour une meilleure expérience, nous vous recommandons d'utiliser le même email que celui utilisé dans l'application officielle.",
+            [{ text: "Compris", style: "default" }]
+        );
+    };
+
     return (
         <Modal
             animationType="slide"
@@ -67,7 +75,12 @@ export default function LoginModal({ visible, onClose, onLogin }) {
                     </View>
 
                     <View style={styles.form}>
-                        <Text style={styles.label}>Email</Text>
+                        <View style={styles.labelRow}>
+                            <Text style={styles.label}>Email</Text>
+                            <TouchableOpacity onPress={showEmailInfo} style={styles.infoIcon}>
+                                <Text style={styles.infoIconText}>ⓘ</Text>
+                            </TouchableOpacity>
+                        </View>
                         <TextInput
                             style={styles.input}
                             placeholder="votre@email.com"
@@ -148,9 +161,27 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "600",
         color: "#666",
-        marginBottom: 8,
         textTransform: "uppercase",
         letterSpacing: 0.5,
+    },
+    labelRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 8,
+    },
+    infoIcon: {
+        marginLeft: 8,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: "#F0F0F0",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    infoIconText: {
+        fontSize: 14,
+        color: "#666",
+        fontWeight: "bold",
     },
     input: {
         borderBottomWidth: 1,

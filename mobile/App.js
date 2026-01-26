@@ -233,10 +233,10 @@ export default function App() {
   const closeDrawer = () => setDrawerVisible(false);
 
   const onStateChange = async () => {
-    const previousRouteName = currentScreen;
+    if (!navigationRef.current) return;
     const currentRouteName = navigationRef.current.getCurrentRoute().name;
 
-    if (previousRouteName !== currentRouteName) {
+    if (currentScreen !== currentRouteName) {
       setCurrentScreen(currentRouteName);
     }
   };
@@ -331,10 +331,10 @@ export default function App() {
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
-            animation: 'fade',
+            animation: 'slide_from_right',
             freezeOnBlur: true,
           }}
-          detachInactiveScreens={false}
+          detachInactiveScreens={true}
         >
           <Stack.Screen name="Home">
             {(props) => (

@@ -41,6 +41,7 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
 
     // Logic for hiding results (UI only, default is visible)
     const [hiddenAlarms, setHiddenAlarms] = useState(new Set());
+    const [expandedAlarms, setExpandedAlarms] = useState(new Set());
 
 
     const [selectedSlot, setSelectedSlot] = useState(null);
@@ -94,6 +95,15 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
 
     const toggleVisibility = (id) => {
         setHiddenAlarms(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleExpansion = (id) => {
+        setExpandedAlarms(prev => {
             const next = new Set(prev);
             if (next.has(id)) next.delete(id);
             else next.add(id);
@@ -203,10 +213,14 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
                                         );
                                     }
 
+                                    const isExpanded = expandedAlarms.has(alarm.id);
+
                                     return (
                                         <View style={styles.localMatchesSection}>
-
-                                            <View style={styles.daysContainer}>
+                                            <View style={[
+                                                styles.daysContainer,
+                                                !isExpanded && matchingDays.length > 5 && styles.collapsedContainer
+                                            ]}>
                                                 {matchingDays.map(([dateStr, dayAvail]) => (
                                                     <TouchableOpacity
                                                         key={dateStr}
@@ -217,7 +231,16 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
                                                     </TouchableOpacity>
                                                 ))}
                                             </View>
-
+                                            {matchingDays.length > 5 && (
+                                                <TouchableOpacity
+                                                    style={styles.showMoreButton}
+                                                    onPress={() => toggleExpansion(alarm.id)}
+                                                >
+                                                    <Text style={styles.showMoreText}>
+                                                        {isExpanded ? "Voir moins" : `Voir plus (${matchingDays.length - 5} de plus)`}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            )}
                                         </View>
                                     );
 
@@ -232,7 +255,10 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
                                                 <Text style={styles.notifClear}>Effacer</Text>
                                             </TouchableOpacity>
                                         </View>
-                                        <View style={styles.daysContainer}>
+                                        <View style={[
+                                            styles.daysContainer,
+                                            !expandedAlarms.has(alarm.name) && Object.keys(matchedResults[alarm.name]).length > 5 && styles.collapsedContainer
+                                        ]}>
                                             {Object.entries(matchedResults[alarm.name]).map(([date, dayPlan]) => (
                                                 <TouchableOpacity
                                                     key={date}
@@ -243,6 +269,16 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
                                                 </TouchableOpacity>
                                             ))}
                                         </View>
+                                        {Object.keys(matchedResults[alarm.name]).length > 5 && (
+                                            <TouchableOpacity
+                                                style={styles.showMoreButton}
+                                                onPress={() => toggleExpansion(alarm.name)}
+                                            >
+                                                <Text style={styles.showMoreText}>
+                                                    {expandedAlarms.has(alarm.name) ? "Voir moins" : `Voir plus (${Object.keys(matchedResults[alarm.name]).length - 5} de plus)`}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )}
 
                                     </View>
                                 )}
@@ -594,6 +630,19 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: theme.colors.white,
         textAlign: 'center',
+    },
+    collapsedContainer: {
+        maxHeight: 70, // Limits to ~2 lines of chips
+        overflow: 'hidden',
+    },
+    showMoreButton: {
+        marginTop: 8,
+        paddingVertical: 4,
+    },
+    showMoreText: {
+        fontSize: 12,
+        color: '#1A73E8',
+        fontWeight: '600',
     },
 
 
