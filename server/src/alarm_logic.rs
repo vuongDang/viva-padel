@@ -180,9 +180,14 @@ mod tests {
 
         let result = alarm.target_availabilities(avail);
         // Should find this week's Monday, this week's Tuesday, and next week's Monday
+        let expected_result = if Local::now().date_naive().weekday() == Weekday::Mon {
+            3
+        } else {
+            4
+        };
         assert_eq!(
             result.len(),
-            4,
+            expected_result,
             "Should find 4 days within the next 2 weeks"
         );
     }
