@@ -76,6 +76,7 @@ fn day_planning_url(date: &str) -> String {
 /// Pull availability data for LeGarden availability
 pub async fn get_day_planning(date: &str) -> Result<DayPlanningResponse, LeGardenError> {
     let request = day_planning_url(date);
+    tracing::debug!("Fetching le garden for availabilities of {}", &date);
     let req_result: String = reqwest::get(request)
         .await
         .map_err(|e| LeGardenError::ConnectionIssue(e.into()))?

@@ -1,11 +1,16 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 use viva_padel_server::{AppState, Calendar, api::create_router, run};
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::registry()
+        .with(
+            EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new("debug"))
+                .add_directive("hyper=off".parse().unwrap_or_default()),
+        )
         .with(tracing_subscriber::fmt::layer())
         .init();
 

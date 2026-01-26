@@ -45,7 +45,14 @@ pub async fn run(state: AppState) {
     const RETRY_DELAY_SECS: u64 = 5;
     loop {
         let time_now = chrono::Local::now().hour();
-        if state.legarden.polling_time().contains(&time_now) {
+        if state.legarden.polling_time().contains(&time_now)
+            || state
+                .calendar
+                .read()
+                .expect("Failed to get calendar")
+                .availabilities
+                .is_empty()
+        {
             tracing::info!("Polling calendar");
             for attempt in 1..=MAX_RETRIES {
                 match state.legarden.get_calendar().await {

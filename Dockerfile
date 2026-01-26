@@ -29,4 +29,4 @@ COPY --from=builder /usr/src/padel/target/release/viva-padel-server /usr/local/b
 
 EXPOSE 3000
 
-# ENTRYPOINT ["viva-padel-server"e
+ENTRYPOINT ["viva-padel-server"]
