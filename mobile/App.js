@@ -30,6 +30,8 @@ export default function App() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const navigationRef = React.useRef(null);
+  const userRef = useRef(null);
+  const isInitialized = useRef(false);
 
   // Authentication state
   const [user, setUser] = useState(null);
@@ -116,8 +118,13 @@ export default function App() {
     return matches;
   }, [availabilities, alarms]);
 
-  const fetchReservations = useCallback(async (force = false) => {
-    if (!force && hasFetchedReservations.current) {
+  // Synchronize userRef
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  const fetchReservations = useCallback(async (isRefresh = false) => {
+    if (!isRefresh && hasFetchedReservations.current) {
       console.log('[App] Skipping fetch, using cached data');
       return;
     }
@@ -220,6 +227,9 @@ export default function App() {
   }, [lastResponse, handleIncomingMatchedResults, navigateTo]);
 
   useEffect(() => {
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+
     const setup = async () => {
       // 1. Load local data for immediate UI
       const [localAlarms, localResults] = await Promise.all([
@@ -248,7 +258,16 @@ export default function App() {
 
     setup();
 
-    const cleanup = NotificationService.initListeners(
+    // Listen for push token changes (rotations) - One-time setup
+    const tokenSubscription = Notifications.addPushTokenListener(async (token) => {
+      console.log('[App] Push token changed:', token.data);
+      const currentUser = userRef.current;
+      if (currentUser) {
+        await NotificationService.registerDeviceWithServer(token.data, currentUser.token, currentUser.email);
+      }
+    });
+
+    const cleanupListeners = NotificationService.initListeners(
       (notification) => {
         console.log('Foreground notification:', notification.request.content.title);
       },
@@ -267,7 +286,10 @@ export default function App() {
       }
     );
 
-    return cleanup;
+    return () => {
+      cleanupListeners();
+      tokenSubscription.remove();
+    };
   }, [fetchUserInfo]);
 
   // Centralized Auto-Save for Alarms
@@ -278,39 +300,6 @@ export default function App() {
     }
   }, [alarms]);
 
-  // Handle push token registration/updates
-  useEffect(() => {
-    if (!user) return;
-
-    let isMounted = true;
-
-    const register = async () => {
-      console.log('[App] Attempting to register device for user:', user.email);
-      const token = await NotificationService.registerForPushNotificationsAsync();
-      console.log('[App] Received push token:', token ? 'YES' : 'NONE');
-
-      if (token && user && isMounted) {
-        await NotificationService.registerDeviceWithServer(token, user.token, user.email);
-      } else if (!token) {
-        console.warn('[App] Could not register device: No push token received.');
-      }
-    };
-
-    register();
-
-    // Listen for token changes
-    const subscription = Notifications.addPushTokenListener(async (token) => {
-      console.log('[App] Push token changed:', token.data);
-      if (user && isMounted) {
-        await NotificationService.registerDeviceWithServer(token.data, user.token, user.email);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      subscription.remove();
-    };
-  }, [user]);
 
   const handleLogin = (email, token) => {
     setUser({ email, token });

@@ -159,14 +159,15 @@ export const NotificationService = {
                 const lastUser = await SecureStore.getItemAsync(LAST_USER_KEY);
 
                 if (lastToken === pushToken && lastUser === userEmail) {
-                    console.log('[NotificationService] Device already registered for this user and token. Skipping server call.');
+                    // Log only in dev or via hidden console to avoid cluttering normal startup
+                    if (__DEV__) console.log('[NotificationService] Device registration matches cache. Skipping server call.');
                     return;
                 }
             } catch (e) {
                 console.warn('[NotificationService] Failed to read registration cache:', e);
             }
         } else {
-            console.log('[NotificationService] Force registration requested. Bypassing cache.');
+            console.log('[NotificationService] Requesting registration sync (bypass cache).');
         }
 
         const deviceId = await NotificationService.getInstallationId();

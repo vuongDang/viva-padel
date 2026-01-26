@@ -64,15 +64,33 @@ export default function CalendarScreen({
         const loadSavedTag = async () => {
             try {
                 const savedTag = await AsyncStorage.getItem('last_selected_tag');
-                if (savedTag) {
-                    setActiveAlarmId(savedTag === "all" ? "all" : savedTag);
+                if (savedTag && savedTag !== "null" && savedTag !== "") {
+                    console.log("[CalendarScreen] Loading saved tag:", savedTag);
+                    setActiveAlarmId(savedTag);
+                } else {
+                    console.log("[CalendarScreen] No saved tag found, strictly defaulting to 'all'");
+                    setActiveAlarmId("all");
                 }
             } catch (err) {
-                console.error("Failed to load saved tag:", err);
+                console.error("[CalendarScreen] AsyncStorage error, defaulting to 'all':", err);
+                setActiveAlarmId("all");
             }
         };
         loadSavedTag();
     }, []);
+
+    // Validation Effect: Ensures activeAlarmId is always "all" if it's not found in the alarms list.
+    // This handles cases where a saved tag was deleted, or the alarms haven't loaded yet.
+    useEffect(() => {
+        if (activeAlarmId === "all") return;
+
+        // Force to "all" if there are no filters or if the current activeAlarmId is not among them
+        const alarmExists = alarms.some(a => a.id === activeAlarmId.toString());
+        if (!alarmExists) {
+            console.log(`[CalendarScreen] Tag ${activeAlarmId} invalid or missing. Falling back to 'all'.`);
+            setActiveAlarmId("all");
+        }
+    }, [alarms, activeAlarmId]);
 
 
     const handlePrevMonth = () => {
@@ -86,10 +104,11 @@ export default function CalendarScreen({
     useEffect(() => {
         const unsubscribe = navigation.addListener('blur', async () => {
             try {
-                // Save the current active tag when leaving the screen
-                await AsyncStorage.setItem('last_selected_tag', activeAlarmId.toString());
+                if (activeAlarmId) {
+                    await AsyncStorage.setItem('last_selected_tag', activeAlarmId.toString());
+                }
             } catch (err) {
-                console.error("Failed to save tag on blur:", err);
+                console.error("[CalendarScreen] Failed to save tag on blur:", err);
             }
         });
 
@@ -163,6 +182,9 @@ export default function CalendarScreen({
         setSelectedSlot(slotGroup);
         setBookingModalVisible(true);
     };
+
+    // Debug log to trace selection state in Hidden Debug Console
+    if (__DEV__) console.log("[CalendarScreen] activeAlarmId is currently:", activeAlarmId);
 
     return (
         <SafeAreaView style={styles.container}>
