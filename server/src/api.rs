@@ -219,7 +219,6 @@ pub(crate) async fn login(
     Ok((StatusCode::OK, Json(LoginResponse { token })))
 }
 
-#[cfg(feature = "local_dev")]
 #[derive(Deserialize)]
 pub struct TestNotifRequest {
     pub user_id: Option<Uuid>,
