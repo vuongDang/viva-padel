@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -13,6 +13,7 @@ import { fetchWithTimeout } from './src/utils/apiUtils';
 import { NotificationService } from './src/services/notificationService';
 import { AuthService } from './src/services/authService';
 import { AlarmService } from './src/services/alarmService';
+import { matchesFilter } from './src/utils/filterUtils';
 
 const Stack = createNativeStackNavigator();
 
@@ -34,6 +35,44 @@ export default function App() {
   const [reservationsLoading, setReservationsLoading] = useState(false);
   const hasFetchedReservations = useRef(false);
   const isInitialAlarmsLoaded = useRef(false);
+
+  // Global filtered matches shared across screens
+  const filteredMatches = useMemo(() => {
+    if (!availabilities) return { all: {} };
+
+    const matches = { all: {} };
+
+    // 1. Calculate matches for "all" (Tous)
+    Object.entries(availabilities).forEach(([dateStr, dayAvail]) => {
+      if (!dayAvail?.["hydra:member"]) return;
+      const hasMatch = dayAvail["hydra:member"].some(playground =>
+        playground.activities.some(activity =>
+          activity.slots.some(slot => matchesFilter(slot, playground, dateStr, 'all', []))
+        )
+      );
+      if (hasMatch) {
+        matches.all[dateStr] = dayAvail;
+      }
+    });
+
+    // 2. Calculate matches for each alarm
+    alarms.forEach(alarm => {
+      matches[alarm.id] = {};
+      Object.entries(availabilities).forEach(([dateStr, dayAvail]) => {
+        if (!dayAvail?.["hydra:member"]) return;
+        const hasMatch = dayAvail["hydra:member"].some(playground =>
+          playground.activities.some(activity =>
+            activity.slots.some(slot => matchesFilter(slot, playground, dateStr, alarm.id, alarms))
+          )
+        );
+        if (hasMatch) {
+          matches[alarm.id][dateStr] = dayAvail;
+        }
+      });
+    });
+
+    return matches;
+  }, [availabilities, alarms]);
 
   const fetchReservations = useCallback(async (force = false) => {
     if (!force && hasFetchedReservations.current) {
@@ -350,10 +389,10 @@ export default function App() {
           <Stack.Screen name="Calendar">
             {(props) => (
               <CalendarScreen
-
                 {...props}
                 openDrawer={openDrawer}
                 availabilities={availabilities}
+                filteredMatches={filteredMatches}
                 calendarTimestamp={calendarTimestamp}
                 loading={reservationsLoading}
                 onRefresh={() => fetchReservations(true)}
@@ -365,34 +404,29 @@ export default function App() {
                 onSaveAlarm={handleSaveAlarm}
                 onDeleteAlarm={handleDeleteAlarm}
               />
-
-
             )}
           </Stack.Screen>
           <Stack.Screen name="TimeSlots">
             {(props) => (
               <TimeSlotsScreen
-
                 {...props}
                 openDrawer={openDrawer}
                 user={user}
                 alarms={alarms}
                 availabilities={availabilities}
+                filteredMatches={filteredMatches}
                 calendarTimestamp={calendarTimestamp}
                 matchedResults={matchedResults}
                 onRefresh={() => fetchReservations(true)}
                 loading={reservationsLoading}
-
                 onSaveAlarm={handleSaveAlarm}
                 onDeleteAlarm={handleDeleteAlarm}
                 onToggleAlarm={handleToggleAlarm}
                 onClearMatchedResult={handleClearMatchedResult}
                 onSync={handleSyncAlarms}
                 onLogin={handleLogin}
-
                 onLogout={handleLogout}
               />
-
             )}
           </Stack.Screen>
         </Stack.Navigator>

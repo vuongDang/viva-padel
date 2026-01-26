@@ -34,7 +34,8 @@ export default function CalendarScreen({
     onLogout,
     alarms,
     onSaveAlarm,
-    onDeleteAlarm
+    onDeleteAlarm,
+    filteredMatches
 }) {
 
 
@@ -145,22 +146,10 @@ export default function CalendarScreen({
 
 
 
-    const checkAvailability = useCallback(
-        (dateStr) => {
-            const dayAvail = availabilities[dateStr];
-            if (dayAvail && dayAvail["hydra:member"]) {
-                return dayAvail["hydra:member"].some((playground) =>
-                    playground.activities.some((activity) =>
-                        activity.slots.some((slot) =>
-                            matchesFilter(slot, playground, dateStr, activeAlarmId, alarms),
-                        ),
-                    ),
-                );
-            }
-            return false;
-        },
-        [availabilities, activeAlarmId, alarms],
-    );
+    const checkAvailability = useCallback((dateStr) => {
+        const matchesForCurrent = filteredMatches[activeAlarmId] || {};
+        return !!matchesForCurrent[dateStr];
+    }, [filteredMatches, activeAlarmId]);
 
 
     const onDateClick = (dateStr) => {
@@ -225,7 +214,18 @@ export default function CalendarScreen({
                 dayAvail={selectedDate ? availabilities[selectedDate] : null}
                 onClose={() => setAvailModalVisible(false)}
                 onSlotClick={onSlotClick}
-                filterFn={useCallback((slot, playground) => matchesFilter(slot, playground, selectedDate, activeAlarmId, alarms), [selectedDate, activeAlarmId, alarms])}
+                filterFn={useCallback((slot, playground) => {
+                    const matchesForCurrent = filteredMatches[activeAlarmId] || {};
+                    const dayMatch = matchesForCurrent[selectedDate];
+                    if (!dayMatch) return false;
+
+                    // Deep check inside the day match
+                    return dayMatch["hydra:member"].some(p =>
+                        p.name === playground.name && p.activities.some(a =>
+                            a.slots.some(s => s.start_at === (slot.startAt || slot.start_at))
+                        )
+                    );
+                }, [selectedDate, activeAlarmId, filteredMatches])}
             />
 
 

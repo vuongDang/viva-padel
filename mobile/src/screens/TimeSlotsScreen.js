@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CreationModal from '../components/Modals/CreationModal';
@@ -21,7 +21,7 @@ import { theme } from '../styles/theme';
 
 const WEEKDAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
-export default function TimeSlotsScreen({ navigation, route, openDrawer, user, alarms, availabilities, calendarTimestamp, matchedResults, onSaveAlarm, onDeleteAlarm, onToggleAlarm, onClearMatchedResult, onSync, onLogin, onLogout, onRefresh, loading }) {
+export default function TimeSlotsScreen({ navigation, route, openDrawer, user, alarms, availabilities, filteredMatches, calendarTimestamp, matchedResults, onSaveAlarm, onDeleteAlarm, onToggleAlarm, onClearMatchedResult, onSync, onLogin, onLogout, onRefresh, loading }) {
 
 
 
@@ -195,15 +195,8 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
 
                                 {/* Local Availability Matches */}
                                 {!hiddenAlarms.has(alarm.id) && (() => {
-                                    if (!availabilities) return null;
-                                    const matchingDays = Object.entries(availabilities).filter(([dateStr, dayAvail]) => {
-                                        if (!dayAvail?.["hydra:member"]) return false;
-                                        return dayAvail["hydra:member"].some(playground =>
-                                            playground.activities.some(activity =>
-                                                activity.slots.some(slot => matchesFilter(slot, playground, dateStr, alarm.id, alarms))
-                                            )
-                                        );
-                                    });
+                                    const matchesForCurrent = filteredMatches[alarm.id] || {};
+                                    const matchingDays = Object.entries(matchesForCurrent);
 
                                     if (matchingDays.length === 0) {
                                         return (
@@ -243,7 +236,6 @@ export default function TimeSlotsScreen({ navigation, route, openDrawer, user, a
                                             )}
                                         </View>
                                     );
-
                                 })()}
 
 

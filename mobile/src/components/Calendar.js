@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Dimensions, Animated } from 'react-native';
 import { theme } from '../styles/theme';
 
@@ -8,75 +8,71 @@ export default function Calendar({ availabilities, currentMonthDate, onDateClick
     const year = currentMonthDate.getFullYear();
     const month = currentMonthDate.getMonth();
 
-    const date = new Date(year, month, 1);
-    let firstDay = date.getDay() - 1;
-    if (firstDay === -1) firstDay = 6;
+    const days = useMemo(() => {
+        const result = [];
+        const date = new Date(year, month, 1);
+        let firstDay = date.getDay() - 1;
+        if (firstDay === -1) firstDay = 6;
 
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const prevMonthLastDay = new Date(year, month, 0).getDate();
 
-    const days = [];
+        const today = new Date();
+        const todayDay = today.getDate();
+        const todayMonth = today.getMonth();
+        const todayYear = today.getFullYear();
 
-    const today = new Date();
-    const todayDay = today.getDate();
-    const todayMonth = today.getMonth();
-    const todayYear = today.getFullYear();
+        // Padding prev month
+        for (let i = 0; i < firstDay; i++) {
+            const d = prevMonthLastDay - (firstDay - 1 - i);
+            const cellDate = new Date(year, month - 1, d);
+            const isToday = d === todayDay && cellDate.getMonth() === todayMonth && cellDate.getFullYear() === todayYear;
 
-    // Padding prev month
-    for (let i = 0; i < firstDay; i++) {
-        const d = prevMonthLastDay - (firstDay - 1 - i);
-        const cellDate = new Date(year, month - 1, d);
-        const isToday = d === todayDay && cellDate.getMonth() === todayMonth && cellDate.getFullYear() === todayYear;
+            result.push({
+                day: d,
+                isOtherMonth: true,
+                isToday,
+                key: `prev-${i}`
+            });
+        }
 
-        days.push({
-            day: d,
-            isOtherMonth: true,
-            isToday,
-            key: `prev-${i}`
-        });
-    }
+        // Current month
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const isToday = d === todayDay && month === todayMonth && year === todayYear;
 
-    // Current month
-    for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        // Check availability logic
-        // availabilities is object { dateStr: { 'hydra:member': [...] } }
-        // We need to pass logic down or do it here. 
-        // Ideally logic is passed as a prop or we process it here.
-        // Since logic is complex, let's assume `filterFn` returns boolean if date has availability
+            // Data is pending if we are currently loading OR if we don't have this date in the availabilities object yet
+            const isPending = loading || !availabilities || !availabilities[dateStr];
+            const hasAvailability = !isPending && filterFn ? filterFn(dateStr) : false;
 
-        const isToday = d === todayDay && month === todayMonth && year === todayYear;
+            result.push({
+                day: d,
+                isOtherMonth: false,
+                isToday,
+                isPending,
+                hasAvailability,
+                dateStr,
+                key: `curr-${d}`
+            });
+        }
 
-        // Data is pending if we are currently loading OR if we don't have this date in the availabilities object yet
-        const isPending = loading || !availabilities || !availabilities[dateStr];
-        const hasAvailability = !isPending && filterFn ? filterFn(dateStr) : false;
+        // Next month padding
+        const totalCellsSoFar = result.length;
+        const remainingCells = totalCellsSoFar % 7 === 0 ? 0 : 7 - (totalCellsSoFar % 7);
 
-        days.push({
-            day: d,
-            isOtherMonth: false,
-            isToday,
-            isPending,
-            hasAvailability,
-            dateStr,
-            key: `curr-${d}`
-        });
-    }
+        for (let i = 1; i <= remainingCells; i++) {
+            const cellDate = new Date(year, month + 1, i);
+            const isToday = i === todayDay && cellDate.getMonth() === todayMonth && cellDate.getFullYear() === todayYear;
 
-    // Next month padding
-    const totalCellsSoFar = days.length;
-    const remainingCells = totalCellsSoFar % 7 === 0 ? 0 : 7 - (totalCellsSoFar % 7);
-
-    for (let i = 1; i <= remainingCells; i++) {
-        const cellDate = new Date(year, month + 1, i);
-        const isToday = i === todayDay && cellDate.getMonth() === todayMonth && cellDate.getFullYear() === todayYear;
-
-        days.push({
-            day: i,
-            isOtherMonth: true,
-            isToday,
-            key: `next-${i}`
-        });
-    }
+            result.push({
+                day: i,
+                isOtherMonth: true,
+                isToday,
+                key: `next-${i}`
+            });
+        }
+        return result;
+    }, [year, month, availabilities, filterFn, loading]);
 
     // Calculate rows needed
     const totalCells = days.length;
