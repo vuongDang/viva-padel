@@ -140,6 +140,7 @@ pub(crate) async fn update_alarms(
 pub struct GetUserResponse {
     pub user: User,
     pub alarms: Vec<Alarm>,
+    pub devices: Vec<String>,
 }
 
 pub(crate) async fn get_user(
@@ -154,7 +155,14 @@ pub(crate) async fn get_user(
     // Fetch alarms
     let alarms = state.db.get_user_alarms(user_id).await?;
 
-    let response = GetUserResponse { user, alarms };
+    // Fetch devices
+    let devices = state.db.get_devices_for_user(user_id).await?;
+
+    let response = GetUserResponse {
+        user,
+        alarms,
+        devices,
+    };
     Ok(Json(response))
 }
 

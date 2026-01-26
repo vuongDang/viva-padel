@@ -61,6 +61,7 @@ pub trait DataBaseService: Send + Sync {
                 _ => DBError::Sqlx(e),
             })
     }
+
     async fn register_device(
         &self,
         device_id: &str,
@@ -82,6 +83,17 @@ pub trait DataBaseService: Send + Sync {
         .await?;
         Ok(())
     }
+
+    async fn get_devices_for_user(&self, user_id: Uuid) -> Result<Vec<String>, DBError> {
+        let rows = sqlx::query!(
+            r#"SELECT device_id FROM devices WHERE user_id = ?"#,
+            user_id
+        )
+        .fetch_all(self.get_db_pool())
+        .await?;
+        Ok(rows.into_iter().filter_map(|r| r.device_id).collect())
+    }
+
     async fn update_alarms(&self, user_id: Uuid, alarms: Vec<Alarm>) -> Result<(), DBError> {
         let mut tx = self.get_db_pool().begin().await?;
 
