@@ -56,19 +56,15 @@ impl From<DBError> for ApiError {
 }
 
 pub fn create_router(state: AppState) -> Router {
-    let mut api_router = Router::new()
+    let api_router = Router::new()
         .route("/calendar", get(get_calendar))
         .route("/health", get(health_check))
         .route("/signup", post(signup))
         .route("/login", post(login))
         .route("/register-device", post(register_device))
         .route("/alarms", post(update_alarms))
-        .route("/user", get(get_user));
-
-    #[cfg(feature = "local_dev")]
-    {
-        api_router = api_router.route("/test-notification", get(test_notification))
-    }
+        .route("/user", get(get_user))
+        .route("/test-notification", get(test_notification));
 
     Router::new()
         .nest("/viva-padel", api_router)
@@ -226,37 +222,25 @@ pub(crate) async fn login(
 #[cfg(feature = "local_dev")]
 #[derive(Deserialize)]
 pub struct TestNotifRequest {
-    pub device_token: String,
+    pub user_id: Option<Uuid>,
+    pub device_token: Option<String>,
     pub title: Option<String>,
     pub message: Option<String>,
 }
 
-#[cfg(feature = "local_dev")]
 pub(crate) async fn test_notification(
     State(state): State<AppState>,
     Json(payload): Json<TestNotifRequest>,
 ) -> Result<StatusCode, ApiError> {
-    use std::collections::BTreeMap;
-    use std::collections::HashMap;
+    let mut tokens = vec![];
+    if let Some(uuid) = payload.user_id {
+        tokens = state.db.get_tokens_for_user(uuid).await?;
+    }
+    if let Some(token) = payload.device_token {
+        tokens.push(token);
+    }
 
-    use crate::services::legarden::DATE_FORMAT;
-    use chrono::Datelike;
-    use chrono::Duration;
-
-    let today = chrono::Local::now().date_naive();
-    let monday_next_week =
-        today + Duration::days((7 - today.weekday().num_days_from_monday() as i64) % 7);
-    let today = today.format(DATE_FORMAT).to_string();
-    let monday_next_week = monday_next_week.format(DATE_FORMAT).to_string();
-
-    let simple_day = crate::models::legarden::DayPlanningResponse::simple_day();
-    let mut avail = BTreeMap::new();
-    avail.insert(today, simple_day.clone());
-    avail.insert(monday_next_week, simple_day);
-
-    let mut final_avail = HashMap::new();
-    final_avail.insert("Mon alarme préférée".to_owned(), avail);
-    let data = Some(serde_json::json!({ "availabilities": final_avail}));
+    // let data = Some(serde_json::json!({ "availabilities": final_avail}));
     let title = payload.title.as_deref().unwrap_or("Test Notification 🎾");
     let message = payload
         .message
@@ -265,7 +249,7 @@ pub(crate) async fn test_notification(
 
     if let Err(e) = state
         .notifications
-        .send_notification(&[payload.device_token], title, message, data)
+        .send_notification(&tokens, title, message, None)
         .await
     {
         return Err(ApiError::Internal(e));
