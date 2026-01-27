@@ -52,7 +52,7 @@ impl LeGardenService for LeGardenServer {
             let day_planning = get_day_planning(&date_str).await?;
             calendar.insert(date_str, day_planning);
         }
-        Ok(calendar)
+        Ok(Availabilities(calendar))
     }
 
     fn polling_time(&self) -> Range<u32> {

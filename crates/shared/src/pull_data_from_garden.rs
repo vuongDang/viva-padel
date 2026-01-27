@@ -27,7 +27,7 @@ pub async fn get_day_planning(date: &str) -> Result<DayPlanningResponse, Error> 
 
 pub const NB_DAYS_IN_BATCH: u64 = 90;
 
-pub fn json_to_calendar(nb_days: u64) -> Availibilities {
+pub fn json_to_calendar(nb_days: u64) -> Availabilities {
     let today = chrono::Local::now().date_naive();
     let next_3_months = batch_dates(today, nb_days);
     let mut calendar = BTreeMap::new();
@@ -42,12 +42,12 @@ pub fn json_to_calendar(nb_days: u64) -> Availibilities {
 }
 
 #[cfg(feature = "local_dev")]
-pub async fn get_calendar() -> Result<Availibilities, Error> {
+pub async fn get_calendar() -> Result<Availabilities, Error> {
     Ok(json_to_calendar(NB_DAYS_IN_BATCH))
 }
 
 #[cfg(feature = "local_dev")]
-pub async fn get_simple_calendar(booked: bool) -> Result<Availibilities, Error> {
+pub async fn get_simple_calendar(booked: bool) -> Result<Availabilities, Error> {
     let today = chrono::Local::now().date_naive();
     let next_3_months = batch_dates(today, 10);
     let mut calendar = BTreeMap::new();
@@ -66,7 +66,7 @@ pub async fn get_simple_calendar(booked: bool) -> Result<Availibilities, Error> 
 }
 
 #[cfg(not(feature = "local_dev"))]
-pub async fn get_calendar() -> Result<Availibilities, Error> {
+pub async fn get_calendar() -> Result<Availabilities, Error> {
     let today = chrono::Local::now().date_naive();
     let next_3_months = batch_dates(today, NB_DAYS_IN_BATCH);
     let mut calendar = BTreeMap::new();
@@ -88,7 +88,7 @@ fn batch_dates(from: NaiveDate, nb_days: u64) -> Vec<NaiveDate> {
 }
 
 /// Gather courts that got freed between old and new availabilities
-pub fn freed_courts(new: &Availibilities, old: &Availibilities) -> Availibilities {
+pub fn freed_courts(new: &Availabilities, old: &Availabilities) -> Availabilities {
     let mut freed = BTreeMap::new();
     let dates = old.keys().filter(|date| new.contains_key(*date));
     for day_str in dates {
@@ -165,8 +165,8 @@ mod tests {
     fn freed_courts_correct() {
         let mut old = json_to_calendar(4);
         let mut new = old.clone();
-        let new_ptr: *const Availibilities = &new as *const Availibilities;
-        let old_ptr: *const Availibilities = &old as *const Availibilities;
+        let new_ptr: *const Availabilities = &new as *const Availabilities;
+        let old_ptr: *const Availabilities = &old as *const Availabilities;
 
         let new_avail = freed_courts(&new, &old);
         assert!(new_avail.is_empty());
@@ -201,7 +201,7 @@ mod tests {
         }
     }
 
-    fn get_available_prices(avail: &Availibilities) -> Vec<Price> {
+    fn get_available_prices(avail: &Availabilities) -> Vec<Price> {
         let mut prices = vec![];
         avail.values().for_each(|day| {
             day.courts().iter().for_each(|court| {

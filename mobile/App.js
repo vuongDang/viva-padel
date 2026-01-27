@@ -10,7 +10,7 @@ import TimeSlotsScreen from './src/screens/TimeSlotsScreen';
 import CustomDrawer from './src/components/CustomDrawer';
 import * as Notifications from 'expo-notifications';
 import * as Updates from 'expo-updates';
-import { fetchWithTimeout } from './src/utils/apiUtils';
+import { fetchWithTimeout, onUnauthorized } from './src/utils/apiUtils';
 import { NotificationService } from './src/services/notificationService';
 import { AuthService } from './src/services/authService';
 import { AlarmService } from './src/services/alarmService';
@@ -145,7 +145,9 @@ export default function App() {
       const responseText = await response.text();
 
       if (!response.ok) {
-        Alert.alert("Server Error", "Could not fetch availabilities.");
+        if (response.status !== 401) {
+          Alert.alert("Server Error", "Could not fetch availabilities.");
+        }
         setReservationsLoading(false);
         return;
       }
@@ -166,18 +168,12 @@ export default function App() {
     try {
       const data = await AuthService.getUserInfo(token);
 
-      // Device registration sync check
-      if (data.devices) {
-        const currentId = await NotificationService.getInstallationId();
-        if (!data.devices.includes(currentId)) {
-          console.log('[App] Current device not found on server. Triggering re-registration sync...');
-          const pushToken = await NotificationService.registerForPushNotificationsAsync();
-          if (pushToken) {
-            await NotificationService.registerDeviceWithServer(pushToken, token, email, true);
-          }
-        } else {
-          console.log('[App] Device registration confirmed by server.');
-        }
+      // Proactively ensure device registration is up to date with the latest token
+      // (Required to switch from Expo Go tokens to Native build tokens)
+      console.log('[App] Refreshing device registration...');
+      const pushToken = await NotificationService.registerForPushNotificationsAsync();
+      if (pushToken) {
+        await NotificationService.registerDeviceWithServer(pushToken, token, email);
       }
 
       if (data.alarms) {
@@ -291,6 +287,19 @@ export default function App() {
       tokenSubscription.remove();
     };
   }, [fetchUserInfo]);
+
+  useEffect(() => {
+    const unsubscribe = onUnauthorized(() => {
+      if (userRef.current) {
+        handleLogout();
+        Alert.alert(
+          "Session expirée",
+          "Votre session n'est plus valide. Veuillez vous reconnecter."
+        );
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   // Centralized Auto-Save for Alarms
   useEffect(() => {

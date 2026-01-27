@@ -6,8 +6,11 @@ pub mod mock;
 pub mod models;
 pub mod services;
 
-use crate::models::legarden::{Availabilities, DayPlanningResponse, PadelCourtResponse, Slot};
-use chrono::Timelike;
+use crate::{
+    models::legarden::{Availabilities, Court, DayPlanningResponse, Slot},
+    services::legarden::DATE_FORMAT,
+};
+use chrono::{Datelike, Month, Timelike, Weekday};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap},
@@ -164,7 +167,7 @@ pub fn freed_courts(new: &Availabilities, old: &Availabilities) -> Availabilitie
                     }
                 }
                 if !slots.is_empty() {
-                    courts.push(PadelCourtResponse::clone_with(new_court, slots));
+                    courts.push(Court::clone_with(new_court, slots));
                 }
             }
             if !courts.is_empty() {
@@ -175,7 +178,7 @@ pub fn freed_courts(new: &Availabilities, old: &Availabilities) -> Availabilitie
             }
         }
     }
-    freed
+    Availabilities(freed)
 }
 
 pub(crate) async fn send_notifications_to_users(
@@ -202,11 +205,10 @@ pub(crate) async fn send_notifications_to_users(
 
         // 2. Build the message
         let alarm_names: Vec<String> = triggers.keys().cloned().collect();
-        let title = "Courts libérés ! 🎾";
-        let body = format!(
-            "Bonne nouvelle ! Vos alertes ({}) ont trouvé des terrains disponibles.",
-            alarm_names.join(", ")
-        );
+        let availabilities = triggers.values().cloned().collect();
+        let title = "Courts libérés! 🎾";
+        let body = message_from_availabilities(&availabilities);
+        dbg!(&body);
 
         // 3. Send
         let data = Some(serde_json::json!({ "user_id": user_id, "alarms": alarm_names }));
@@ -222,18 +224,64 @@ pub(crate) async fn send_notifications_to_users(
     }
 }
 
-#[cfg(test)]
+fn message_from_availabilities(avail: &Vec<Availabilities>) -> String {
+    let mut messages = vec![];
+    for avail in avail {
+        for (date, _court, slot, _price) in avail.iter() {
+            let date = chrono::NaiveDate::parse_from_str(date, DATE_FORMAT)
+                .expect("Failed to format date");
+            let weekday = weekday_to_french(date.weekday());
+            let date_str = date.format("%d/%m").to_string();
+            let msg = format!("{} {} à {}", weekday, date_str, slot.start_at());
+            messages.push(msg);
+        }
+    }
+    messages.join("/n")
+}
+
+fn weekday_to_french(weekday: Weekday) -> &'static str {
+    match weekday {
+        Weekday::Mon => "Lun",
+        Weekday::Tue => "Mar",
+        Weekday::Wed => "Mer",
+        Weekday::Thu => "Jeu",
+        Weekday::Fri => "Ven",
+        Weekday::Sat => "Sam",
+        Weekday::Sun => "Dim",
+    }
+}
+
+#[allow(dead_code)]
+fn months_to_french(month: Month) -> &'static str {
+    match month {
+        Month::January => "Jan",
+        Month::February => "Fév",
+        Month::March => "Mars",
+        Month::April => "Avr",
+        Month::May => "Mai",
+        Month::June => "Juin",
+        Month::July => "Juil",
+        Month::August => "Août",
+        Month::September => "Sept",
+        Month::October => "Oct",
+        Month::November => "Nov",
+        Month::December => "Déc",
+    }
+}
+
+#[cfg(all(test, feature = "local_dev"))]
 mod tests {
     use std::collections::BTreeMap;
 
-    use chrono::{Local, NaiveTime};
+    use chrono::NaiveTime;
+    use testcases::legarden::{json_planning_simple_all_booked, json_planning_simple_day};
 
     use crate::{
+        mock::simple_availabilities,
         models::{
             CourtType,
             legarden::{DayPlanningResponse, Price},
         },
-        services::legarden::DATE_FORMAT,
     };
 
     use super::*;
@@ -267,22 +315,8 @@ mod tests {
 
         // 4. Construct old and new availabilities
         // We want a slot that was NOT bookable in old, but IS bookable in new.
-        let today = Local::now().date_naive().format(DATE_FORMAT).to_string();
-        let simple_day = DayPlanningResponse::simple_day();
-
-        let mut old_day = simple_day.clone();
-        // In old_day, make sure the slot is NOT bookable
-        old_day.courts_mut()[0].slots_mut()[0].prices_mut()[0].set_bookable(false);
-
-        let mut new_day = simple_day.clone();
-        // In new_day, it remains bookable (simple_day has it bookable by default)
-        new_day.courts_mut()[0].slots_mut()[0].prices_mut()[0].set_bookable(true);
-
-        let mut old = BTreeMap::new();
-        old.insert(today.clone(), old_day);
-
-        let mut new = BTreeMap::new();
-        new.insert(today.clone(), new_day);
+        let old = simple_availabilities(2, json_planning_simple_all_booked());
+        let new = simple_availabilities(2, json_planning_simple_day());
 
         // 5. Run the notification logic
         let results = notify_users_for_freed_courts(state, new, old).await;
@@ -293,11 +327,12 @@ mod tests {
         assert!(user_results.contains_key("Morning Indoor"));
         let notified_avail = user_results.get("Morning Indoor").unwrap();
 
-        assert_eq!(notified_avail.len(), 1);
-        let notified_day = notified_avail.get(&today).unwrap();
-        assert_eq!(notified_day.courts().len(), 1);
-        assert_eq!(notified_day.courts()[0].slots().len(), 1);
-        assert!(notified_day.courts()[0].slots()[0].prices()[0].bookable());
+        assert_eq!(notified_avail.iter().count(), 4);
+        for (_, court, slot, price) in notified_avail.iter() {
+            assert!(price.bookable());
+            assert_eq!(slot.start_at(), "10:00");
+            assert_eq!(court.name(), "Padel 1")
+        }
     }
 
     #[test]
@@ -308,12 +343,12 @@ mod tests {
         let mut old_price = Price::default();
         old_price.set_bookable(false);
         let mut old_slot = Slot::default();
-        let mut old_court = PadelCourtResponse::default();
+        let mut old_court = Court::default();
 
         let mut new_price = Price::default();
         new_price.set_bookable(true);
         let mut new_slot = Slot::default();
-        let mut new_court = PadelCourtResponse::default();
+        let mut new_court = Court::default();
 
         old_slot.prices_mut().push(old_price);
         old_court.slots_mut().push(old_slot);
@@ -328,7 +363,7 @@ mod tests {
         old_cal.insert("toto".to_owned(), old_day);
         new_cal.insert("toto".to_owned(), new_day);
 
-        let freed = freed_courts(&new_cal, &old_cal);
+        let freed = freed_courts(&Availabilities(new_cal), &Availabilities(old_cal));
         assert_eq!(freed.len(), 1);
     }
 
@@ -343,7 +378,7 @@ mod tests {
         assert!(new_avail.is_empty());
 
         let mut counter = 0;
-        for (old_day, new_day) in old.values_mut().zip(new.values_mut()) {
+        for (old_day, new_day) in old.0.values_mut().zip(new.0.values_mut()) {
             for (old_court, new_court) in old_day
                 .courts_mut()
                 .iter_mut()

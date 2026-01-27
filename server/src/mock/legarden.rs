@@ -74,7 +74,7 @@ pub fn real_data_availabilities(nb_days: u64) -> Availabilities {
             serde_json::from_str(json_planning.get(i % json_planning.len()).unwrap()).unwrap();
         calendar.insert(date_str, day_planning);
     }
-    calendar
+    Availabilities(calendar)
 }
 
 pub fn simple_availabilities(nb_days: u64, json: String) -> Availabilities {
@@ -86,5 +86,5 @@ pub fn simple_availabilities(nb_days: u64, json: String) -> Availabilities {
         let date_str = date.format(DATE_FORMAT).to_string();
         calendar.insert(date_str, day_planning.clone());
     }
-    calendar
+    Availabilities(calendar)
 }

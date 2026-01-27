@@ -11,82 +11,85 @@ impl Alarm {
         let today = chrono::Local::now().date_naive();
         let max_date = today + chrono::Duration::weeks(self.weeks_ahead as i64);
 
-        avail
-            .into_iter()
-            .filter_map(|(key, day_planning)| {
-                // Keep the availabilities which dates are within the alarm week_ahead and match weekday
-                let date = match NaiveDate::parse_from_str(&key, DATE_FORMAT) {
-                    Ok(d) => d,
-                    Err(_) => return None, // If date is invalid, discard this day
-                };
+        Availabilities(
+            avail
+                .0
+                .into_iter()
+                .filter_map(|(key, day_planning)| {
+                    // Keep the availabilities which dates are within the alarm week_ahead and match weekday
+                    let date = match NaiveDate::parse_from_str(&key, DATE_FORMAT) {
+                        Ok(d) => d,
+                        Err(_) => return None, // If date is invalid, discard this day
+                    };
 
-                if !(date >= today && date <= max_date) {
-                    return None; // Not within the weeks_ahead range
-                }
+                    if !(date >= today && date <= max_date) {
+                        return None; // Not within the weeks_ahead range
+                    }
 
-                if !self.days_of_the_week.contains(&date.weekday()) {
-                    return None; // Doesn't match alarm's weekdays
-                }
+                    if !self.days_of_the_week.contains(&date.weekday()) {
+                        return None; // Doesn't match alarm's weekdays
+                    }
 
-                // Filter courts within the day_planning
-                let filtered_courts = day_planning
-                    .courts()
-                    .iter()
-                    .filter_map(|court| {
-                        // Keep the availabilities which court type match the alarm court_type
-                        let court_type_matches = match self.court_type {
-                            CourtType::Indoor => court.is_indoor(),
-                            CourtType::Outdoor => !court.is_indoor(),
-                            CourtType::Both => true,
-                        };
+                    // Filter courts within the day_planning
+                    let filtered_courts = day_planning
+                        .courts()
+                        .iter()
+                        .filter_map(|court| {
+                            // Keep the availabilities which court type match the alarm court_type
+                            let court_type_matches = match self.court_type {
+                                CourtType::Indoor => court.is_indoor(),
+                                CourtType::Outdoor => !court.is_indoor(),
+                                CourtType::Both => true,
+                            };
 
-                        if !court_type_matches {
-                            return None;
-                        }
+                            if !court_type_matches {
+                                return None;
+                            }
 
-                        // Filter slots within the court
-                        let filtered_slots = court
-                            .slots()
-                            .iter()
-                            .filter_map(|slot| {
-                                // Keep the availabilities which start time are within the time_range of the alarm
-                                let start_time =
-                                    NaiveTime::parse_from_str(slot.start_at(), TIME_FORMAT)
-                                        .unwrap();
-                                let is_within_time_range = start_time >= self.time_range.0
-                                    && start_time < self.time_range.1;
-                                let new_prices = slot
-                                    .prices()
-                                    .iter()
-                                    .filter(|price| {
-                                        let is_bookable = price.bookable();
-                                        let does_slot_duration_fit =
-                                            self.slot_durations.contains(&price.duration());
-                                        is_bookable && does_slot_duration_fit
-                                    })
-                                    .cloned()
-                                    .collect();
-                                let new_slot = slot.clone_with_prices(new_prices);
-                                (is_within_time_range && !new_slot.prices().is_empty())
-                                    .then_some(new_slot)
-                            })
-                            .collect::<Vec<_>>();
+                            // Filter slots within the court
+                            let filtered_slots = court
+                                .slots()
+                                .iter()
+                                .filter_map(|slot| {
+                                    // Keep the availabilities which start time are within the time_range of the alarm
+                                    let start_time =
+                                        NaiveTime::parse_from_str(slot.start_at(), TIME_FORMAT)
+                                            .unwrap();
+                                    let is_within_time_range = start_time >= self.time_range.0
+                                        && start_time < self.time_range.1;
+                                    let new_prices = slot
+                                        .prices()
+                                        .iter()
+                                        .filter(|price| {
+                                            let is_bookable = price.bookable();
+                                            let does_slot_duration_fit =
+                                                self.slot_durations.contains(&price.duration());
+                                            is_bookable && does_slot_duration_fit
+                                        })
+                                        .cloned()
+                                        .collect();
+                                    let new_slot = slot.clone_with_prices(new_prices);
+                                    (is_within_time_range && !new_slot.prices().is_empty())
+                                        .then_some(new_slot)
+                                })
+                                .collect::<Vec<_>>();
 
-                        if filtered_slots.is_empty() {
-                            None
-                        } else {
-                            Some(court.clone_with(filtered_slots))
-                        }
-                    })
-                    .collect::<Vec<_>>();
+                            if filtered_slots.is_empty() {
+                                None
+                            } else {
+                                Some(court.clone_with(filtered_slots))
+                            }
+                        })
+                        .collect::<Vec<_>>();
 
-                if filtered_courts.is_empty() {
-                    None
-                } else {
-                    Some((key, day_planning.new_with(filtered_courts)))
-                }
-            })
-            .collect()
+                    if filtered_courts.is_empty() {
+                        None
+                    } else {
+                        Some((key, day_planning.new_with(filtered_courts)))
+                    }
+                })
+                .collect(),
+        )
     }
 }
 
@@ -139,7 +142,7 @@ mod tests {
             }
             avail.insert(date, day);
         }
-        avail
+        Availabilities(avail)
     }
 
     #[test]
@@ -152,13 +155,19 @@ mod tests {
         };
 
         let mut result = alarm.target_availabilities(avail);
+
+        let expected_result = if Local::now().date_naive().weekday() == Weekday::Tue {
+            2
+        } else {
+            1
+        };
         assert_eq!(
             result.len(),
-            1,
+            expected_result,
             "Should only find availabilities for Tuesday"
         );
 
-        let (date, _) = result.pop_first().unwrap();
+        let (date, _) = result.0.pop_first().unwrap();
         let weekday = NaiveDate::parse_from_str(&date, DATE_FORMAT)
             .unwrap()
             .weekday();
