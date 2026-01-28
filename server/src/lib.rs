@@ -236,7 +236,7 @@ fn message_from_availabilities(avail: &Vec<Availabilities>) -> String {
             messages.push(msg);
         }
     }
-    messages.join("\n")
+    messages.join(", ")
 }
 
 fn weekday_to_french(weekday: Weekday) -> &'static str {
