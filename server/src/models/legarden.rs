@@ -2,7 +2,10 @@
 
 use std::{collections::BTreeMap, fmt::Debug, ops::Deref, slice::Iter};
 
+use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
+
+use crate::services::legarden::TIME_FORMAT;
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Availabilities(pub BTreeMap<String, DayPlanningResponse>);
@@ -72,7 +75,7 @@ impl Default for Court {
             at_type: Default::default(),
             at_id: Default::default(),
             id: Default::default(),
-            name: Default::default(),
+            name: "Default Court".to_owned(),
             indoor: Default::default(),
             surface: Default::default(),
             closures: Default::default(),
@@ -179,7 +182,7 @@ impl DayPlanningResponse {
 
     // Get date from url request that looks like this:
     // "/clubs/playgrounds/plannings/2024-10-04?club.id=a126b4d4..."
-    pub fn date(&self) -> &str {
+    pub fn date_from_url(&self) -> &str {
         const BASE_REQ: &str = "/clubs/playgrounds/plannings/";
         const DATE_LEN: usize = 10;
         let url = &self.view.id;
@@ -196,6 +199,18 @@ impl DayPlanningResponse {
             total_items: self.total_items,
             view: self.view.clone(),
         }
+    }
+
+    pub fn add_slot(&mut self, slot_start_at: NaiveTime, bookable: bool) {
+        let mut price = Price::default();
+        price.set_bookable(bookable);
+        let mut slot = Slot::default();
+        *slot.start_at_mut() = slot_start_at.format(TIME_FORMAT).to_string();
+        let mut court = Court::default();
+
+        slot.prices_mut().push(price);
+        court.slots_mut().push(slot);
+        self.courts_mut().push(court);
     }
 }
 
@@ -231,7 +246,7 @@ impl Slot {
         &self.start_at
     }
 
-    pub fn start_at_mut(&mut self) -> &str {
+    pub fn start_at_mut(&mut self) -> &mut String {
         &mut self.start_at
     }
 

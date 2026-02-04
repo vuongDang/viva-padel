@@ -8,7 +8,7 @@ pub mod services;
 
 use crate::{
     models::legarden::{Availabilities, Court, DayPlanningResponse, Slot},
-    services::legarden::DATE_FORMAT,
+    services::legarden::{DATE_FORMAT, TIME_FORMAT},
 };
 use chrono::{Datelike, Month, Timelike, Weekday};
 use serde::{Deserialize, Serialize};
@@ -144,9 +144,14 @@ pub async fn notify_users_for_freed_courts(
 }
 
 /// Gather courts that got freed between old and new availabilities
+/// and are at least `NB_MINUTES_THRESHOLD_FOR_NOTIF` away from current time
+const NB_MINUTES_THRESHOLD_FOR_NOTIF: i64 = 60;
 pub fn freed_courts(new: &Availabilities, old: &Availabilities) -> Availabilities {
     let mut freed = BTreeMap::new();
+
     let dates = old.keys().filter(|date| new.contains_key(*date));
+
+    let now = chrono::Local::now().naive_local();
     for day_str in dates {
         if let Some(new_day) = new.get(day_str) {
             let old_day = old.get(day_str).unwrap();
@@ -155,11 +160,18 @@ pub fn freed_courts(new: &Availabilities, old: &Availabilities) -> Availabilitie
                 let mut slots = vec![];
                 for (old_slot, new_slot) in old_court.slots().iter().zip(new_court.slots().iter()) {
                     let mut prices = vec![];
-                    for (old_price, new_price) in
-                        old_slot.prices().iter().zip(new_slot.prices().iter())
-                    {
-                        if !old_price.bookable() && new_price.bookable() {
-                            prices.push(new_price.clone());
+                    if !is_slot_too_soon_or_already_passed(
+                        now,
+                        day_str,
+                        &old_slot,
+                        NB_MINUTES_THRESHOLD_FOR_NOTIF,
+                    ) {
+                        for (old_price, new_price) in
+                            old_slot.prices().iter().zip(new_slot.prices().iter())
+                        {
+                            if !old_price.bookable() && new_price.bookable() {
+                                prices.push(new_price.clone());
+                            }
                         }
                     }
                     if !prices.is_empty() {
@@ -225,6 +237,7 @@ pub(crate) async fn send_notifications_to_users(
 }
 
 fn message_from_availabilities(avail: &Vec<Availabilities>) -> String {
+    // todo!("fix messages");
     let mut messages = vec![];
     for avail in avail {
         for (date, _court, slot, _price) in avail.iter() {
@@ -273,15 +286,12 @@ fn months_to_french(month: Month) -> &'static str {
 mod tests {
     use std::collections::BTreeMap;
 
-    use chrono::NaiveTime;
+    use chrono::{NaiveTime, TimeDelta};
     use testcases::legarden::{json_planning_simple_all_booked, json_planning_simple_day};
 
     use crate::{
         mock::simple_availabilities,
-        models::{
-            CourtType,
-            legarden::{DayPlanningResponse, Price},
-        },
+        models::{CourtType, legarden::DayPlanningResponse},
     };
 
     use super::*;
@@ -340,45 +350,80 @@ mod tests {
         let mut old_day = DayPlanningResponse::default();
         let mut new_day = DayPlanningResponse::default();
 
-        let mut old_price = Price::default();
-        old_price.set_bookable(false);
-        let mut old_slot = Slot::default();
-        let mut old_court = Court::default();
+        // Make the slot start in 30 minues, should be ignored if today
+        let time_in_30_minutes = chrono::Local::now()
+            .naive_local()
+            .time()
+            .overflowing_add_signed(TimeDelta::minutes(30));
 
-        let mut new_price = Price::default();
-        new_price.set_bookable(true);
-        let mut new_slot = Slot::default();
-        let mut new_court = Court::default();
+        // Make the slot already passed, should be ignored if today
+        let time_30_minutes_ago = chrono::Local::now()
+            .naive_local()
+            .time()
+            .overflowing_sub_signed(TimeDelta::minutes(30));
 
-        old_slot.prices_mut().push(old_price);
-        old_court.slots_mut().push(old_slot);
-        old_day.courts_mut().push(old_court);
+        // Make the slot in 3 hours, should pass any day
+        let time_in_3_hours = chrono::Local::now()
+            .naive_local()
+            .time()
+            .overflowing_add_signed(TimeDelta::minutes(180));
 
-        new_slot.prices_mut().push(new_price);
-        new_court.slots_mut().push(new_slot);
-        new_day.courts_mut().push(new_court);
+        old_day.add_slot(time_30_minutes_ago.0, false);
+        old_day.add_slot(time_in_30_minutes.0, false);
+        old_day.add_slot(time_in_3_hours.0, false);
+        new_day.add_slot(time_30_minutes_ago.0, true);
+        new_day.add_slot(time_in_30_minutes.0, true);
+        new_day.add_slot(time_in_3_hours.0, true);
 
         let mut old_cal = BTreeMap::new();
         let mut new_cal = BTreeMap::new();
-        old_cal.insert("toto".to_owned(), old_day);
-        new_cal.insert("toto".to_owned(), new_day);
 
+        // Insert one today
+        let today = chrono::Local::now().format(DATE_FORMAT).to_string();
+        old_cal.insert(today.clone(), old_day.clone());
+        new_cal.insert(today.clone(), new_day.clone());
+
+        // Insert one tomorrow
+        let tomorrow = chrono::Local::now()
+            .with_day(chrono::Local::now().day() + 1)
+            .unwrap()
+            .format(DATE_FORMAT)
+            .to_string();
+        old_cal.insert(tomorrow.clone(), old_day.clone());
+        new_cal.insert(tomorrow.clone(), new_day.clone());
+
+        // Insert one day before
+        let yesterday = chrono::Local::now()
+            .with_day(chrono::Local::now().day() - 1)
+            .unwrap()
+            .format(DATE_FORMAT)
+            .to_string();
+        old_cal.insert(yesterday.clone(), old_day.clone());
+        new_cal.insert(yesterday.clone(), new_day.clone());
+
+        dbg!(&Availabilities(old_cal.clone()));
+        dbg!(&Availabilities(new_cal.clone()));
+        // Slots in 1 hour today should not be counted
         let freed = freed_courts(&Availabilities(new_cal), &Availabilities(old_cal));
-        assert_eq!(freed.len(), 1);
+        // Only the passed slot and the slot in 30 minutes today should be ignored
+        assert_eq!(freed.iter().count(), 4);
+        assert!(freed.iter().all(|(_, _, _, price)| price.bookable()));
     }
 
     #[test]
     fn freed_courts_correct() {
-        let mut old = crate::mock::real_data_availabilities(4);
+        let mut old = crate::mock::real_data_availabilities(2);
         let mut new = old.clone();
         let new_ptr: *const Availabilities = &new as *const Availabilities;
         let old_ptr: *const Availabilities = &old as *const Availabilities;
 
         let new_avail = freed_courts(&new, &old);
         assert!(new_avail.is_empty());
+        dbg!(&old.iter().next());
 
+        let now = chrono::Local::now().naive_local();
         let mut counter = 0;
-        for (old_day, new_day) in old.0.values_mut().zip(new.0.values_mut()) {
+        for ((date, old_day), (_, new_day)) in old.0.iter_mut().zip(new.0.iter_mut()) {
             for (old_court, new_court) in old_day
                 .courts_mut()
                 .iter_mut()
@@ -389,6 +434,12 @@ mod tests {
                     .iter_mut()
                     .zip(new_court.slots_mut().iter_mut())
                 {
+                    let slot_time_ok = !is_slot_too_soon_or_already_passed(
+                        now,
+                        date,
+                        old_slot,
+                        NB_MINUTES_THRESHOLD_FOR_NOTIF,
+                    );
                     for (old_price, new_price) in old_slot
                         .prices_mut()
                         .iter_mut()
@@ -396,30 +447,33 @@ mod tests {
                     {
                         old_price.set_bookable(false);
                         new_price.set_bookable(true);
-                        counter += 1;
+                        if slot_time_ok {
+                            counter += 1;
+                        }
                         unsafe {
                             let avail = freed_courts(&*new_ptr, &*old_ptr);
-                            assert_eq!(get_available_prices(&avail).len(), counter);
+                            assert_eq!(avail.iter().count(), counter);
+                            assert!(avail.iter().all(|(_, _, _, price)| price.bookable()));
                         }
                     }
                 }
             }
         }
     }
+}
 
-    fn get_available_prices(avail: &Availabilities) -> Vec<Price> {
-        let mut prices = vec![];
-        avail.values().for_each(|day| {
-            day.courts().iter().for_each(|court| {
-                court.slots().iter().for_each(|slot| {
-                    slot.prices().iter().for_each(|price| {
-                        if price.bookable() {
-                            prices.push(price.clone());
-                        }
-                    })
-                })
-            })
-        });
-        prices
-    }
+fn is_slot_too_soon_or_already_passed(
+    now: chrono::NaiveDateTime,
+    slot_date: &str,
+    slot: &Slot,
+    threshold_in_min: i64,
+) -> bool {
+    let slot_date =
+        chrono::NaiveDate::parse_from_str(slot_date, DATE_FORMAT).expect("Date has wrong format");
+    let slot_start = chrono::NaiveTime::parse_from_str(slot.start_at(), TIME_FORMAT)
+        .expect("Slot time has wrong format");
+    let slot_time = chrono::NaiveDateTime::new(slot_date, slot_start);
+
+    let time_between_slot_and_now = slot_time.signed_duration_since(now);
+    time_between_slot_and_now < chrono::Duration::minutes(threshold_in_min)
 }
