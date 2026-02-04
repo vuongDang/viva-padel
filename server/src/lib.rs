@@ -197,7 +197,7 @@ pub(crate) async fn send_notifications_to_users(
     state: AppState,
     avail_filtered_with_alarms: &HashMap<Uuid, HashMap<String, Availabilities>>,
 ) {
-    for (user_id, triggers) in avail_filtered_with_alarms {
+    for (user_id, availabilities_per_alarm) in avail_filtered_with_alarms {
         // 1. Get tokens for this user
         let tokens = match state.db.get_tokens_for_user(*user_id).await {
             Ok(tokens) => tokens,
@@ -216,11 +216,17 @@ pub(crate) async fn send_notifications_to_users(
         }
 
         // 2. Build the message
-        let alarm_names: Vec<String> = triggers.keys().cloned().collect();
-        let availabilities = triggers.values().cloned().collect();
+        let alarm_names: Vec<String> = availabilities_per_alarm.keys().cloned().collect();
+        let availabilities: Vec<Availabilities> =
+            availabilities_per_alarm.values().cloned().collect();
+
+        // If availabilities are all empty, don't send notifications
+        if availabilities.iter().all(|avail| avail.iter().count() == 0) {
+            continue;
+        }
+
         let title = "Courts libérés! 🎾";
         let body = message_from_availabilities(&availabilities);
-        dbg!(&body);
 
         // 3. Send
         let data = Some(serde_json::json!({ "user_id": user_id, "alarms": alarm_names }));
@@ -237,7 +243,6 @@ pub(crate) async fn send_notifications_to_users(
 }
 
 fn message_from_availabilities(avail: &Vec<Availabilities>) -> String {
-    // todo!("fix messages");
     let mut messages = vec![];
     for avail in avail {
         for (date, _court, slot, _price) in avail.iter() {
