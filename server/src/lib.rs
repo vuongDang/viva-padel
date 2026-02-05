@@ -295,7 +295,7 @@ mod tests {
     use testcases::legarden::{json_planning_simple_all_booked, json_planning_simple_day};
 
     use crate::{
-        mock::simple_availabilities,
+        mock::{simple_availabilities, simple_availabilities_with_start_tomorrow},
         models::{CourtType, legarden::DayPlanningResponse},
     };
 
@@ -330,8 +330,8 @@ mod tests {
 
         // 4. Construct old and new availabilities
         // We want a slot that was NOT bookable in old, but IS bookable in new.
-        let old = simple_availabilities(2, json_planning_simple_all_booked());
-        let new = simple_availabilities(2, json_planning_simple_day());
+        let old = simple_availabilities_with_start_tomorrow(2, json_planning_simple_all_booked());
+        let new = simple_availabilities_with_start_tomorrow(2, json_planning_simple_day());
 
         // 5. Run the notification logic
         let results = notify_users_for_freed_courts(state, new, old).await;

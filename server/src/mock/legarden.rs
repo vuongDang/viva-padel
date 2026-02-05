@@ -6,6 +6,7 @@ use std::sync::atomic::AtomicUsize;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use chrono::Days;
 use std::sync::atomic::Ordering;
 
 use crate::models::legarden::*;
@@ -80,6 +81,21 @@ pub fn real_data_availabilities(nb_days: u64) -> Availabilities {
 pub fn simple_availabilities(nb_days: u64, json: String) -> Availabilities {
     let today = chrono::Local::now().date_naive();
     let next_days = batch_dates(today, nb_days);
+    let mut calendar = BTreeMap::new();
+    let day_planning: DayPlanningResponse = serde_json::from_str(&json).unwrap();
+    for date in next_days.iter() {
+        let date_str = date.format(DATE_FORMAT).to_string();
+        calendar.insert(date_str, day_planning.clone());
+    }
+    Availabilities(calendar)
+}
+
+pub fn simple_availabilities_with_start_tomorrow(nb_days: u64, json: String) -> Availabilities {
+    let tomorrow = chrono::Local::now()
+        .date_naive()
+        .checked_add_days(Days::new(1))
+        .unwrap();
+    let next_days = batch_dates(tomorrow, nb_days);
     let mut calendar = BTreeMap::new();
     let day_planning: DayPlanningResponse = serde_json::from_str(&json).unwrap();
     for date in next_days.iter() {
