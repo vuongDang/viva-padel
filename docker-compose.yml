@@ -18,6 +18,7 @@ services:
       - ./crates/testcases/data:/usr/local/share/viva-padel-server/mock-data
     environment:
       - DATABASE_URL=sqlite:///usr/local/share/viva-padel-server/data/viva_padel.db?mode=rwc
+      - LOG_DIRECTORY=/usr/local/share/viva-padel-server/data/logs
       - PADEL_MOCK_DATA=/usr/local/share/viva-padel-server/mock-data
     entrypoint: ["viva-padel-server"]
     # entrypoint: ["/bin/sh", "-c", "viva-padel-server || tail -f /dev/null"]
