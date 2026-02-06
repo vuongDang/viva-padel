@@ -257,6 +257,7 @@ fn message_from_availabilities(avail: &Vec<Availabilities>) -> String {
             messages.push(msg);
         }
     }
+    messages.dedup();
     messages.join("\n")
 }
 
