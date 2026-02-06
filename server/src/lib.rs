@@ -18,6 +18,9 @@ use std::{
     time::Duration,
 };
 use tokio::time::sleep;
+use tracing_appender::non_blocking::WorkerGuard;
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
 use crate::models::Alarm;
@@ -254,7 +257,7 @@ fn message_from_availabilities(avail: &Vec<Availabilities>) -> String {
             messages.push(msg);
         }
     }
-    messages.join(", ")
+    messages.join("\n")
 }
 
 fn weekday_to_french(weekday: Weekday) -> &'static str {
@@ -295,7 +298,7 @@ mod tests {
     use testcases::legarden::{json_planning_simple_all_booked, json_planning_simple_day};
 
     use crate::{
-        mock::{simple_availabilities, simple_availabilities_with_start_tomorrow},
+        mock::simple_availabilities_with_start_tomorrow,
         models::{CourtType, legarden::DayPlanningResponse},
     };
 
@@ -406,8 +409,6 @@ mod tests {
         old_cal.insert(yesterday.clone(), old_day.clone());
         new_cal.insert(yesterday.clone(), new_day.clone());
 
-        dbg!(&Availabilities(old_cal.clone()));
-        dbg!(&Availabilities(new_cal.clone()));
         // Slots in 1 hour today should not be counted
         let freed = freed_courts(&Availabilities(new_cal), &Availabilities(old_cal));
         // Only the passed slot and the slot in 30 minutes today should be ignored
@@ -424,7 +425,6 @@ mod tests {
 
         let new_avail = freed_courts(&new, &old);
         assert!(new_avail.is_empty());
-        dbg!(&old.iter().next());
 
         let now = chrono::Local::now().naive_local();
         let mut counter = 0;
@@ -481,4 +481,29 @@ fn is_slot_too_soon_or_already_passed(
 
     let time_between_slot_and_now = slot_time.signed_duration_since(now);
     time_between_slot_and_now < chrono::Duration::minutes(threshold_in_min)
+}
+
+pub fn setup_logging() -> WorkerGuard {
+    dotenvy::dotenv().ok();
+    let log_dir = std::env::var("LOG_DIRECTORY").expect("LOG_DIRECTORY must be set");
+
+    let file_appender = tracing_appender::rolling::daily(log_dir, "server.log");
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+    let file_layer = tracing_subscriber::fmt::layer()
+        .with_writer(non_blocking)
+        .json()
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+        .with_current_span(true)
+        .with_span_list(true);
+
+    tracing_subscriber::registry()
+        .with(
+            EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new("trace"))
+                .add_directive("hyper=off".parse().unwrap_or_default()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .with(file_layer)
+        .init();
+    guard
 }

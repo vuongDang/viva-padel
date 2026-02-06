@@ -397,7 +397,6 @@ mod tests {
     fn test_availabilities_iter() {
         let avail = crate::mock::simple_availabilities(4, json_planning_simple_day());
         assert_eq!(avail.iter().count(), 4 * 3);
-        dbg!(&avail);
         let expected_duration = [3600, 7200, 5400];
         for (i, (_date, court, slot, price)) in avail.iter().enumerate() {
             assert_eq!(slot.start_at(), "10:00");

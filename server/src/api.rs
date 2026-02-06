@@ -67,7 +67,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/register-device", post(register_device))
         .route("/alarms", post(update_alarms))
         .route("/user", get(get_user))
-        .route("/test-notification", get(test_notification));
+        .route("/test-notification", get(test_notification))
+        .layer(TraceLayer::new_for_http());
 
     Router::new()
         .nest("/viva-padel", api_router)
@@ -116,11 +117,12 @@ pub(crate) async fn register_device(
     Ok(StatusCode::OK)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct UpdateAlarmRequest {
     pub alarms: Vec<Alarm>,
 }
 
+#[tracing::instrument(name = "Update alarms", skip(auth, state))]
 pub(crate) async fn update_alarms(
     auth: AuthUser,
     State(state): State<AppState>,
@@ -165,12 +167,13 @@ pub(crate) async fn get_user(
     Ok(Json(response))
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, Debug)]
 pub struct SignupRequest {
     #[validate(email)]
     pub email: String,
 }
 
+#[tracing::instrument(name = "Signing up", skip(state))]
 pub(crate) async fn signup(
     State(state): State<AppState>,
     Json(payload): Json<SignupRequest>,

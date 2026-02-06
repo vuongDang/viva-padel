@@ -8,6 +8,7 @@ use viva_padel_server::models::Alarm;
 
 #[tokio::test]
 async fn test_server_lifecycle() {
+    let _log_guard = viva_padel_server::setup_logging();
     let avail_free = simple_availabilities(3, json_planning_simple_day());
     let avail_booked = simple_availabilities(3, json_planning_simple_all_booked());
 
@@ -16,13 +17,17 @@ async fn test_server_lifecycle() {
     let email = "poll-test@example.com";
     let token = "notif_token";
     let device_id = "device";
+
+    // Create user
     let user = state.db.create_user(email).await.unwrap();
+
     // Register device
     state
         .db
         .register_device(device_id, token, user.id)
         .await
         .unwrap();
+
     // Register alarm
     state
         .db
@@ -41,7 +46,7 @@ async fn test_server_lifecycle() {
         .lock()
         .await;
 
-    dbg!(&notifications);
+    // dbg!(&notifications);
     assert!(!notifications.is_empty())
 }
 
@@ -78,6 +83,6 @@ async fn test_server_no_notifications() {
         .lock()
         .await;
 
-    dbg!(&notifications);
+    // dbg!(&notifications);
     assert!(notifications.is_empty())
 }

@@ -278,7 +278,6 @@ mod tests {
             "Should be exactly one day matching all criteria"
         );
         let day = result.values().next().unwrap();
-        dbg!(&day);
         assert_eq!(day.courts().len(), 1, "Should be one court");
         assert!(!day.courts()[0].is_indoor(), "Court should be outdoor");
         assert_eq!(day.courts()[0].slots().len(), 1, "Should be one slot");

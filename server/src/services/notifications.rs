@@ -19,6 +19,7 @@ pub struct ExpoNotificationsService;
 
 #[async_trait]
 impl NotificationsService for ExpoNotificationsService {
+    #[tracing::instrument(name = "Sending notification", skip(self, tokens, title, data))]
     async fn send_notification(
         &self,
         tokens: &[String],

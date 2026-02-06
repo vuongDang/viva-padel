@@ -74,11 +74,7 @@ async fn test_get_calendar() {
 }
 
 #[tokio::test]
-async fn test_get_user() {
-    // tracing_subscriber::registry()
-    //     .with(tracing_subscriber::fmt::layer())
-    //     .init();
-
+async fn test_get_user_and_notif() {
     let (server, state) = default_test_server().await;
     let email = "user@example.com";
 
@@ -145,6 +141,7 @@ async fn test_get_user() {
         .await
         .expect("Alarm should exist in database");
 
+    // Verify if alarm was correctly saved
     let saved_alarm: Alarm = serde_json::from_str(&db_alarm.alarm_json).unwrap();
     assert_eq!(saved_alarm.name, alarm.name);
 }

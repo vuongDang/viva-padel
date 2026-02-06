@@ -1,20 +1,12 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
-use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
-use viva_padel_server::{AppState, Calendar, api::create_router, run};
+use viva_padel_server::{AppState, Calendar, api::create_router, run, setup_logging};
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
-        .with(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("debug"))
-                .add_directive("hyper=off".parse().unwrap_or_default()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
     dotenvy::dotenv().ok();
+    // Keep the log guard in main to flush last logs if server is closed
+    let _log_guard = setup_logging();
     let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
     // For production

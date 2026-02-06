@@ -12,6 +12,7 @@ pub struct MockNotificationsService {
 
 #[async_trait]
 impl NotificationsService for MockNotificationsService {
+    #[tracing::instrument(name = "Sending notification", skip(self, tokens, title, data))]
     async fn send_notification(
         &self,
         tokens: &[String],
@@ -20,7 +21,6 @@ impl NotificationsService for MockNotificationsService {
         data: Option<serde_json::Value>,
     ) -> Result<(), String> {
         let notif = notification_request_payload(tokens, title, body, data);
-        tracing::info!("MOCK notifications: {:?}", &notif);
         self.notifications.lock().await.push(notif);
         Ok(())
     }

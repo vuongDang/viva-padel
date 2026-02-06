@@ -9,8 +9,8 @@ chrono = { workspace = true, features = ["serde"] }
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "uuid", "chrono", "macros"] }
 tokio = { version = "1.49.0", features = ["full"] }
 tower-http = { version = "0.6.8", features = ["cors", "trace"] }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter"]}
+tracing = { workspace = true, features = ["attributes"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"]}
 uuid = { version = "1.11", features = ["v4", "serde"] }
 testcases = { workspace= true, optional = true }
 dotenvy = "0.15"
@@ -22,6 +22,7 @@ reqwest = { workspace = true }
 thiserror = "2.0"
 validator = { version = "0.20", features = ["derive"] }
 axum-test = { version = "*", optional = true }
+tracing-appender = "0.2.4"
 
 
 [features]
