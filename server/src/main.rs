@@ -25,16 +25,16 @@ async fn main() {
     // For testing
     #[cfg(feature = "local_dev")]
     let (legarden, notifications, db) = {
-        use std::time::Duration;
-        use testcases::legarden::{json_planning_simple_all_booked, json_planning_simple_day};
-        use viva_padel_server::mock::simple_availabilities;
-        let avail_free = simple_availabilities(3, json_planning_simple_day());
-        let avail_booked = simple_availabilities(3, json_planning_simple_all_booked());
-        let legarden = Arc::new(viva_padel_server::mock::MockLeGardenService::new(
-            vec![avail_booked, avail_free],
-            Duration::from_secs(10),
-        ));
-        // let legarden = Arc::new(viva_padel_server::mock::MockLeGardenService::default());
+        // use std::time::Duration;
+        // use testcases::legarden::{json_planning_simple_all_booked, json_planning_simple_day};
+        // use viva_padel_server::mock::simple_availabilities;
+        // let avail_free = simple_availabilities(3, json_planning_simple_day());
+        // let avail_booked = simple_availabilities(3, json_planning_simple_all_booked());
+        // let legarden = Arc::new(viva_padel_server::mock::MockLeGardenService::new(
+        //     vec![avail_booked, avail_free],
+        //     Duration::from_secs(10),
+        // ));
+        let legarden = Arc::new(viva_padel_server::mock::MockLeGardenService::default());
         let notifications = Arc::new(viva_padel_server::mock::MockNotificationsService::default());
         // let notifications = Arc::new(viva_padel_server::services::ExpoNotificationsService);
         let db = Arc::new(

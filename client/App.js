@@ -14,6 +14,7 @@ import { fetchWithTimeout, onUnauthorized } from './src/utils/apiUtils';
 import { NotificationService } from './src/services/notificationService';
 import { AuthService } from './src/services/authService';
 import { AlarmService } from './src/services/alarmService';
+import { CalendarService } from './src/services/calendarService';
 import { matchesFilter } from './src/utils/filterUtils';
 import { Logger } from './src/utils/logger';
 import DebugOverlay from './src/components/DebugOverlay';
@@ -134,34 +135,18 @@ export default function App() {
 
     console.log('[App] Fetching reservations data...');
     setReservationsLoading(true);
-    const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/calendar`;
 
     try {
-      const response = await fetchWithTimeout(apiUrl, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "CF-Access-Client-Id": process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID,
-          "CF-Access-Client-Secret": process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET,
-        },
-      });
-      const responseText = await response.text();
-
-      if (!response.ok) {
-        if (response.status !== 401) {
-          Alert.alert("Server Error", "Could not fetch availabilities.");
-        }
-        setReservationsLoading(false);
-        return;
-      }
-
-      const data = JSON.parse(responseText);
+      const data = await CalendarService.fetchReservations();
       setAvailabilities(data.availabilities || {});
       setCalendarTimestamp(data.timestamp || null);
       hasFetchedReservations.current = true;
     } catch (error) {
-      console.error(error);
-      Alert.alert("Connection Error", "The server is not available.");
+      if (error.message && error.message.includes('401')) {
+        // Let onUnauthorized handle it
+      } else {
+        Alert.alert("Connection Error", "The server is not available.");
+      }
     } finally {
       setReservationsLoading(false);
     }

@@ -3,17 +3,22 @@ use crate::auth::AuthUser;
 use crate::models::{Alarm, User};
 use crate::services::database::DBError;
 use axum::extract::State;
+use axum::http::HeaderValue;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router, http::StatusCode};
 use chrono::{TimeDelta, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 use validator::Validate;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::{Any, CorsLayer};
 
 #[derive(Debug, Error)]
 pub enum ApiError {
@@ -70,10 +75,20 @@ pub fn create_router(state: AppState) -> Router {
         .route("/test-notification", get(test_notification))
         .layer(TraceLayer::new_for_http());
 
+    let cors = if cfg!(feature = "local_dev") {
+        CorsLayer::permissive()
+    } else {
+        let pwa_url = std::env::var("PWA_URL").expect("PWA_URL must be set");
+        CorsLayer::new()
+            .allow_origin(pwa_url.parse::<HeaderValue>().unwrap())
+            .allow_methods([Method::GET, Method::POST])
+    };
+
     Router::new()
         .nest("/viva-padel", api_router)
         .layer(TraceLayer::new_for_http())
         .layer(axum::Extension(state.clone()))
+        .layer(cors)
         .with_state(state)
 }
 
