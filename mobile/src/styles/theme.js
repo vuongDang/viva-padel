@@ -19,6 +19,7 @@ export const theme = {
         unavailable: '#ea4335',
         availableLight: '#e6f4ea',
         unavailableLight: '#fce8e6',
+        headerBg: '#F5F5F5',
     },
 
     shadows: {

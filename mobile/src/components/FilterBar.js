@@ -100,7 +100,6 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: theme.colors.headerBg,
     marginHorizontal: 16,
     marginVertical: 12,
     borderRadius: 20,
@@ -116,7 +115,7 @@ const styles = StyleSheet.create({
   label: {
     fontWeight: "600",
     fontSize: 14,
-    color: theme.colors.grayText,
+    color: theme.colors.text,
     marginRight: 8,
   },
   actionBtn: {
@@ -125,7 +124,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.white,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 8,
@@ -138,7 +137,7 @@ const styles = StyleSheet.create({
 
 
   actionBtnText: {
-    color: theme.colors.grayText,
+    color: theme.colors.text,
     fontSize: 18,
     marginTop: -2,
   },
