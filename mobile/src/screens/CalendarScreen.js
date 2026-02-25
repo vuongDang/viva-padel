@@ -212,8 +212,6 @@ export default function CalendarScreen({
                 />
             </View>
 
-            <View style={styles.divider} />
-
             <ScrollView contentContainerStyle={styles.content}>
                 <MonthNav currentDate={currentDate} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} />
                 <Calendar availabilities={availabilities} currentMonthDate={currentDate} onDateClick={onDateClick} filterFn={checkAvailability} loading={loading} />
@@ -223,11 +221,6 @@ export default function CalendarScreen({
             <View style={styles.floatingButtonContainer}>
                 <FloatingRefreshButton onPress={onRefresh} loading={loading} style={styles.calendarRefreshButton} />
             </View>
-
-
-
-
-
 
             <AvailabilityModal
                 visible={availModalVisible}
@@ -271,7 +264,6 @@ const styles = StyleSheet.create({
     },
     header: theme.styles.header,
     menuButton: {
-
         width: 40,
         height: 40,
         justifyContent: 'center',
@@ -299,22 +291,14 @@ const styles = StyleSheet.create({
     calendarRefreshButton: {
         minWidth: 140,
     },
-
-
-
-
-
-
     content: {
         padding: 20,
         paddingTop: 10,
-        paddingBottom: 60
+        paddingBottom: 60,
     },
     filterSection: {
         backgroundColor: '#FFF',
-        paddingBottom: 4,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F0F0F0',
+        paddingBottom: 12,
     },
     loadingOverlay: {
         ...StyleSheet.absoluteFillObject,
@@ -323,12 +307,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         zIndex: 1000,
     },
-    divider: {
-        height: 12,
-        backgroundColor: '#FAFAFA', // Match screen background
-    },
-
-
     footerNote: {
         marginTop: 20,
         textAlign: 'center',

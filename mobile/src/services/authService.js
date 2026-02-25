@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import { storage } from '../utils/storage';
 import { fetchWithTimeout } from '../utils/apiUtils';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -71,8 +71,8 @@ export const AuthService = {
 
             const data = await response.json();
             if (data.token) {
-                await SecureStore.setItemAsync(TOKEN_KEY, data.token);
-                await SecureStore.setItemAsync(EMAIL_KEY, email);
+                await storage.setItem(TOKEN_KEY, data.token);
+                await storage.setItem(EMAIL_KEY, email);
             }
             return data;
         } catch (error) {
@@ -85,24 +85,14 @@ export const AuthService = {
      * Get the stored token.
      */
     getToken: async () => {
-        try {
-            return await SecureStore.getItemAsync(TOKEN_KEY);
-        } catch (error) {
-            console.error('[AuthService] Get Token Error:', error);
-            return null;
-        }
+        return await storage.getItem(TOKEN_KEY);
     },
 
     /**
      * Get the stored user email.
      */
     getEmail: async () => {
-        try {
-            return await SecureStore.getItemAsync(EMAIL_KEY);
-        } catch (error) {
-            console.error('[AuthService] Get Email Error:', error);
-            return null;
-        }
+        return await storage.getItem(EMAIL_KEY);
     },
 
     /**
@@ -137,8 +127,8 @@ export const AuthService = {
      */
     logout: async () => {
         try {
-            await SecureStore.deleteItemAsync(TOKEN_KEY);
-            await SecureStore.deleteItemAsync(EMAIL_KEY);
+            await storage.deleteItem(TOKEN_KEY);
+            await storage.deleteItem(EMAIL_KEY);
         } catch (error) {
             console.error('[AuthService] Logout Error:', error);
         }

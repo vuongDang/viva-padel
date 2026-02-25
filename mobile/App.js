@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -38,8 +38,11 @@ export default function App() {
   const [alarms, setAlarms] = useState([]);
   const [matchedResults, setMatchedResults] = useState({});
 
+  const lastResponse = Platform.OS === 'web' ? null : Notifications.useLastNotificationResponse();
+
   useEffect(() => {
     async function updateListener() {
+      if (Platform.OS === 'web') return;
       try {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
@@ -204,116 +207,23 @@ export default function App() {
     }
   }, []);
 
-  const lastResponse = Notifications.useLastNotificationResponse();
-
-  useEffect(() => {
-    if (lastResponse && lastResponse.notification) {
-      const { data } = lastResponse.notification.request.content;
-
-      if (data?.availabilities) {
-        handleIncomingMatchedResults(data.availabilities);
-        navigateTo('TimeSlots');
-      } else {
-
-        const { title, body } = lastResponse.notification.request.content;
-        setSelectedNotification({ title, body });
-        setModalVisible(true);
-      }
-    }
-  }, [lastResponse, handleIncomingMatchedResults, navigateTo]);
-
-  useEffect(() => {
-    if (isInitialized.current) return;
-    isInitialized.current = true;
-
-    const setup = async () => {
-      // 1. Load local data for immediate UI
-      const [localAlarms, localResults] = await Promise.all([
-        AlarmService.getLocalAlarms(),
-        AlarmService.getMatchedResults()
-      ]);
-
-      if (localAlarms?.length > 0) setAlarms(localAlarms);
-      if (localResults) setMatchedResults(localResults);
-
-      // Signal that we've finished the initial load from storage
-      isInitialAlarmsLoaded.current = true;
-
-      // 2. Check for existing session
-      const token = await AuthService.getToken();
-      const email = await AuthService.getEmail();
-      if (token && email) {
-        setUser({ email, token });
-        console.log('[App] Authenticated user found:', email);
-        fetchUserInfo(token, email);
-      }
-
-      // 3. Pre-fetch reservations for matching in TimeSlotsScreen
-      fetchReservations(false);
-    };
-
-    setup();
-
-    // Listen for push token changes (rotations) - One-time setup
-    const tokenSubscription = Notifications.addPushTokenListener(async (token) => {
-      console.log('[App] Push token changed:', token.data);
-      const currentUser = userRef.current;
-      if (currentUser) {
-        await NotificationService.registerDeviceWithServer(token.data, currentUser.token, currentUser.email);
-      }
+  const handleIncomingMatchedResults = useCallback(async (newResults) => {
+    setMatchedResults(prev => {
+      const updated = { ...prev };
+      Object.entries(newResults).forEach(([alarmName, days]) => {
+        updated[alarmName] = { ...(updated[alarmName] || {}), ...days };
+      });
+      AlarmService.saveMatchedResults(updated);
+      return updated;
     });
-
-    const cleanupListeners = NotificationService.initListeners(
-      (notification) => {
-        console.log('Foreground notification:', notification.request.content.title);
-      },
-      (response) => {
-        const { data } = response.notification.request.content;
-
-        if (data?.availabilities) {
-          handleIncomingMatchedResults(data.availabilities);
-          navigateTo('TimeSlots');
-        } else {
-
-          const { title, body } = response.notification.request.content;
-          setSelectedNotification({ title, body });
-          setModalVisible(true);
-        }
-      }
-    );
-
-    return () => {
-      cleanupListeners();
-      tokenSubscription.remove();
-    };
-  }, [fetchUserInfo]);
-
-  useEffect(() => {
-    const unsubscribe = onUnauthorized(() => {
-      if (userRef.current) {
-        handleLogout();
-        Alert.alert(
-          "Session expirée",
-          "Votre session n'est plus valide. Veuillez vous reconnecter."
-        );
-      }
-    });
-    return unsubscribe;
   }, []);
 
-  // Centralized Auto-Save for Alarms
-  useEffect(() => {
-    if (isInitialAlarmsLoaded.current) {
-      console.log('[App] Auto-saving alarms to local storage...', alarms.length);
-      AlarmService.saveLocalAlarms(alarms);
+  const navigateTo = useCallback((screenName, params = {}) => {
+    setCurrentScreen(screenName);
+    if (navigationRef.current) {
+      navigationRef.current.navigate(screenName, params);
     }
-  }, [alarms]);
-
-
-  const handleLogin = (email, token) => {
-    setUser({ email, token });
-    fetchUserInfo(token, email);
-  };
+  }, []);
 
   const handleLogout = async () => {
     await AuthService.logout();
@@ -323,29 +233,14 @@ export default function App() {
     await AlarmService.saveMatchedResults({});
   };
 
-  const openDrawer = () => setDrawerVisible(true);
-  const closeDrawer = () => setDrawerVisible(false);
-
-  const onStateChange = async () => {
-    if (!navigationRef.current) return;
-    const currentRouteName = navigationRef.current.getCurrentRoute().name;
-
-    if (currentScreen !== currentRouteName) {
-      setCurrentScreen(currentRouteName);
-    }
-  };
-
-  const navigateTo = (screenName, params = {}) => {
-    setCurrentScreen(screenName);
-    if (navigationRef.current) {
-      navigationRef.current.navigate(screenName, params);
-    }
+  const handleLogin = (email, token) => {
+    setUser({ email, token });
+    fetchUserInfo(token, email);
   };
 
   const handleUpdateAlarms = async (newAlarms) => {
     setAlarms(newAlarms);
   };
-
 
   const handleSaveAlarm = async (alarmConfig) => {
     let finalName = alarmConfig.name;
@@ -360,7 +255,6 @@ export default function App() {
     const configWithUniqueName = { ...alarmConfig, name: finalName };
     let finalAlarm;
     let updatedAlarms;
-
 
     if (alarmConfig.id) {
       finalAlarm = configWithUniqueName;
@@ -377,7 +271,6 @@ export default function App() {
     return finalAlarm;
   };
 
-
   const handleDeleteAlarm = (id) => {
     const updatedAlarms = alarms.filter(alarm => alarm.id !== id);
     handleUpdateAlarms(updatedAlarms);
@@ -389,19 +282,6 @@ export default function App() {
     );
     handleUpdateAlarms(updatedAlarms);
   };
-
-
-  const handleIncomingMatchedResults = useCallback(async (newResults) => {
-    setMatchedResults(prev => {
-      const updated = { ...prev };
-      // Deep merge new results into existing ones
-      Object.entries(newResults).forEach(([alarmName, days]) => {
-        updated[alarmName] = { ...(updated[alarmName] || {}), ...days };
-      });
-      AlarmService.saveMatchedResults(updated);
-      return updated;
-    });
-  }, []);
 
   const handleClearMatchedResult = async (alarmName) => {
     setMatchedResults(prev => {
@@ -416,6 +296,122 @@ export default function App() {
     if (!user) throw new Error("Veuillez vous connecter pour synchroniser vos créneaux.");
     return await AlarmService.syncAlarms(alarmsToSync || alarms, weeksAhead);
   };
+
+  const openDrawer = () => setDrawerVisible(true);
+  const closeDrawer = () => setDrawerVisible(false);
+
+  const onStateChange = async () => {
+    if (!navigationRef.current) return;
+    const currentRouteName = navigationRef.current.getCurrentRoute().name;
+
+    if (currentScreen !== currentRouteName) {
+      setCurrentScreen(currentRouteName);
+    }
+  };
+
+  // Effects
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    if (lastResponse && lastResponse.notification) {
+      const { data } = lastResponse.notification.request.content;
+
+      if (data?.availabilities) {
+        handleIncomingMatchedResults(data.availabilities);
+        navigateTo('TimeSlots');
+      } else {
+        const { title, body } = lastResponse.notification.request.content;
+        setSelectedNotification({ title, body });
+        setModalVisible(true);
+      }
+    }
+  }, [lastResponse, handleIncomingMatchedResults, navigateTo]);
+
+  useEffect(() => {
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+
+    const setup = async () => {
+      const [localAlarms, localResults] = await Promise.all([
+        AlarmService.getLocalAlarms(),
+        AlarmService.getMatchedResults()
+      ]);
+
+      if (localAlarms?.length > 0) setAlarms(localAlarms);
+      if (localResults) setMatchedResults(localResults);
+
+      isInitialAlarmsLoaded.current = true;
+
+      const token = await AuthService.getToken();
+      const email = await AuthService.getEmail();
+      if (token && email) {
+        setUser({ email, token });
+        console.log('[App] Authenticated user found:', email);
+        fetchUserInfo(token, email);
+      }
+
+      fetchReservations(false);
+    };
+
+    setup();
+
+    let tokenSubscription;
+    if (Platform.OS !== 'web') {
+      tokenSubscription = Notifications.addPushTokenListener(async (token) => {
+        console.log('[App] Push token changed:', token.data);
+        const currentUser = userRef.current;
+        if (currentUser) {
+          await NotificationService.registerDeviceWithServer(token.data, currentUser.token, currentUser.email);
+        }
+      });
+    }
+
+    const cleanupListeners = NotificationService.initListeners(
+      (notification) => {
+        console.log('Foreground notification:', notification.request.content.title);
+      },
+      (response) => {
+        const { data } = response.notification.request.content;
+
+        if (data?.availabilities) {
+          handleIncomingMatchedResults(data.availabilities);
+          navigateTo('TimeSlots');
+        } else {
+          const { title, body } = response.notification.request.content;
+          setSelectedNotification({ title, body });
+          setModalVisible(true);
+        }
+      }
+    );
+
+    return () => {
+      cleanupListeners();
+      if (tokenSubscription) tokenSubscription.remove();
+    };
+  }, [fetchUserInfo, fetchReservations, handleIncomingMatchedResults, navigateTo]);
+
+  useEffect(() => {
+    const unsubscribe = onUnauthorized(() => {
+      if (userRef.current) {
+        handleLogout();
+        Alert.alert(
+          "Session expirée",
+          "Votre session n'est plus valide. Veuillez vous reconnecter."
+        );
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (isInitialAlarmsLoaded.current) {
+      console.log('[App] Auto-saving alarms to local storage...', alarms.length);
+      AlarmService.saveLocalAlarms(alarms);
+    }
+  }, [alarms]);
 
 
 

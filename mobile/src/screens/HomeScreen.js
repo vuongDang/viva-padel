@@ -98,7 +98,8 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
     marginBottom: 16,
-    ...theme.shadows.small,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
   },
   actionTitle: {
     fontSize: 18,

@@ -150,7 +150,7 @@ function DayCell({ item, onPress }) {
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: 'white',
+        backgroundColor: theme.colors.background,
         borderRadius: 8,
         borderWidth: 1,
         borderColor: theme.colors.border,

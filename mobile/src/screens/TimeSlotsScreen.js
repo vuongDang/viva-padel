@@ -23,11 +23,6 @@ const WEEKDAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 export default function TimeSlotsScreen({ navigation, route, openDrawer, user, alarms, availabilities, filteredMatches, calendarTimestamp, matchedResults, onSaveAlarm, onDeleteAlarm, onToggleAlarm, onClearMatchedResult, onSync, onLogin, onLogout, onRefresh, loading }) {
 
-
-
-
-
-
     const [createModalVisible, setCreateModalVisible] = useState(false);
     const [editingAlarm, setEditingAlarm] = useState(null);
 
@@ -407,11 +402,10 @@ const styles = StyleSheet.create({
         marginBottom: 32,
     },
     alarmCard: {
-        backgroundColor: '#FFF',
         padding: 16,
         borderRadius: 12,
         marginBottom: 12,
-        borderWidth: 1,
+        borderWidth: 2,
         borderColor: '#E8E8E8',
         position: 'relative', // For absolute delete button
     },

@@ -27,7 +27,15 @@
       "googleServicesFile": "./google-services.json"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Viva Padel",
+      "shortName": "VivaPadel",
+      "display": "standalone",
+      "themeColor": "#ffffff",
+      "backgroundColor": "#ffffff",
+      "description": "Retrouvez tous les créneaux de Padel"
     },
     "extra": {
       "eas": {
