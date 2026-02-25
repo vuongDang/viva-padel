@@ -204,8 +204,9 @@ pub(crate) async fn login(
     use crate::auth::Claims;
     let user = state.db.get_user_by_email(&payload.email).await?;
 
+    // 6 months expiration date
     let expiration = Utc::now()
-        .checked_add_signed(TimeDelta::days(14))
+        .checked_add_signed(TimeDelta::days(180))
         .expect("valid timestamp")
         .timestamp() as usize;
 
