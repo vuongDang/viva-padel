@@ -8,7 +8,6 @@ import Calendar from "../components/Calendar";
 import AvailabilityModal from "../components/Modals/AvailabilityModal";
 import BookingModal from "../components/Modals/BookingModal";
 import CreationModal from "../components/Modals/CreationModal";
-import { matchesFilter } from "../utils/filterUtils";
 import AuthBadge from "../components/AuthBadge";
 
 import RefreshNote from "../components/RefreshNote";
@@ -40,7 +39,7 @@ export default function CalendarScreen({
 
 
 
-    const [currentMonthDate, setCurrentMonthDate] = useState(new Date(2026, 0, 1));
+    const [currentDate, setCurrentDate] = useState(new Date());
 
     const [activeAlarmId, setActiveAlarmId] = useState("all");
     const [deleteMode, setDeleteMode] = useState(false);
@@ -94,11 +93,11 @@ export default function CalendarScreen({
 
 
     const handlePrevMonth = () => {
-        setCurrentMonthDate(new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() - 1, 1));
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
     };
 
     const handleNextMonth = () => {
-        setCurrentMonthDate(new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() + 1, 1));
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
     };
 
     useEffect(() => {
@@ -216,8 +215,8 @@ export default function CalendarScreen({
             <View style={styles.divider} />
 
             <ScrollView contentContainerStyle={styles.content}>
-                <MonthNav currentDate={currentMonthDate} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} />
-                <Calendar availabilities={availabilities} currentMonthDate={currentMonthDate} onDateClick={onDateClick} filterFn={checkAvailability} loading={loading} />
+                <MonthNav currentDate={currentDate} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} />
+                <Calendar availabilities={availabilities} currentMonthDate={currentDate} onDateClick={onDateClick} filterFn={checkAvailability} loading={loading} />
                 <RefreshNote timestamp={calendarTimestamp} />
             </ScrollView>
 
