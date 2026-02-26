@@ -17,8 +17,6 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 use validator::Validate;
-use tower_http::cors::{Any, CorsLayer};
-use tower_http::cors::{Any, CorsLayer};
 
 #[derive(Debug, Error)]
 pub enum ApiError {

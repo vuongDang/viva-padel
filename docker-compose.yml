@@ -27,6 +27,8 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
+      args:
+        - EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL:-http://localhost:3000}
     image: viva-padel-client:client
     container_name: viva-padel-client
     ports:

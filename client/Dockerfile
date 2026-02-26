@@ -12,6 +12,8 @@ RUN npm install
 # Copy the rest of your source code
 COPY . .
 
+ARG EXPO_PUBLIC_API_URL
+
 # Build the web application (using the 'single' output configured in app.json)
 # This will output files to the `dist` directory by default in Expo >= 50
 RUN npx expo export -p web
