@@ -60,8 +60,66 @@ export const NotificationService = {
      */
     registerForPushNotificationsAsync: async () => {
         if (isWeb) {
-            console.log('[NotificationService] Push notifications not yet supported on web PWA.');
-            return null;
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                console.log('[NotificationService] Web Push is not supported in this browser.');
+                return null;
+            }
+
+            try {
+                let status = Notification.permission;
+                if (status !== 'granted') {
+                    status = await Notification.requestPermission();
+                }
+
+                if (status !== 'granted') {
+                    console.error('[NotificationService] Permission for web push not granted. Status:', status);
+                    return null;
+                }
+
+                // Register service worker if not already registered
+                const registration = await navigator.serviceWorker.register('/service_worker.js');
+                await navigator.serviceWorker.ready;
+
+                const applicationServerKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY;
+                if (!applicationServerKey) {
+                    console.warn('[NotificationService] EXPO_PUBLIC_VAPID_PUBLIC_KEY is not defined in environment variables.');
+                    return null;
+                }
+
+                let subscription = await registration.pushManager.getSubscription();
+                if (!subscription) {
+                    // Convert the base64 string public VAPID keyto a Uint8Array
+                    const urlBase64ToUint8Array = (base64String) => {
+                        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                        const base64 = (base64String + padding)
+                            .replace(/\-/g, '+')
+                            .replace(/_/g, '/');
+
+                        const rawData = window.atob(base64);
+                        const outputArray = new Uint8Array(rawData.length);
+                        for (let i = 0; i < rawData.length; ++i) {
+                            outputArray[i] = rawData.charCodeAt(i);
+                        }
+                        return outputArray;
+                    };
+
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(applicationServerKey)
+                    });
+                }
+
+                const token = JSON.stringify(subscription);
+                if (__DEV__) {
+                    console.log('--- WEB PUSH SUBSCRIPTION ---');
+                    console.log(token);
+                    console.log('-----------------------------');
+                }
+                return token;
+            } catch (error) {
+                console.error('[NotificationService] Error registering web push:', error);
+                return null;
+            }
         }
 
         let token;
@@ -147,8 +205,6 @@ export const NotificationService = {
      * Registers the device with the backend server.
      */
     registerDeviceWithServer: async (pushToken, userToken, userEmail, force = false) => {
-        if (isWeb) return;
-
         if (!pushToken || !userToken || !userEmail) {
             console.warn('[NotificationService] Missing pushToken, userToken or userEmail for registration');
             return;
