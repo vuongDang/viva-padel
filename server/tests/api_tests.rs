@@ -10,7 +10,7 @@ use viva_padel_server::services::legarden::NB_DAYS_IN_BATCH;
 #[tokio::test]
 async fn test_health_check() {
     let (server, _) = default_test_server().await;
-    let response = server.get("/viva-padel/health").await;
+    let response = server.get("/health").await;
     response.assert_status_ok();
 }
 
@@ -21,7 +21,7 @@ async fn test_signup_and_login() {
 
     // 1. Signup
     let signup_response = server
-        .post("/viva-padel/signup")
+        .post("/signup")
         .json(&json!({ "email": email }))
         .await;
 
@@ -37,10 +37,7 @@ async fn test_signup_and_login() {
     assert_eq!(db_user.email, email);
 
     // 2. Login
-    let login_response = server
-        .post("/viva-padel/login")
-        .json(&json!({ "email": email }))
-        .await;
+    let login_response = server.post("/login").json(&json!({ "email": email })).await;
 
     login_response.assert_status_ok();
     let login_data: serde_json::Value = login_response.json();
@@ -68,7 +65,7 @@ async fn test_signup_and_login() {
 async fn test_get_calendar() {
     let (server, _) = default_test_server().await;
     tokio::time::sleep(Duration::from_millis(500)).await;
-    let response = server.get("/viva-padel/calendar").await;
+    let response = server.get("/calendar").await;
     response.assert_status_ok();
 
     let cal: Calendar = serde_json::from_value(response.json()).unwrap();
@@ -82,14 +79,11 @@ async fn test_get_user_and_notif() {
 
     // Signup
     server
-        .post("/viva-padel/signup")
+        .post("/signup")
         .json(&json!({ "email": email }))
         .await;
 
-    let login_response = server
-        .post("/viva-padel/login")
-        .json(&json!({ "email": email }))
-        .await;
+    let login_response = server.post("/login").json(&json!({ "email": email })).await;
     let token = login_response.json::<serde_json::Value>()["token"]
         .as_str()
         .unwrap()
@@ -97,7 +91,7 @@ async fn test_get_user_and_notif() {
 
     // Get user
     let user_response = server
-        .get("/viva-padel/user")
+        .get("/user")
         .add_header(
             axum::http::header::AUTHORIZATION,
             format!("Bearer {}", token),
@@ -113,7 +107,7 @@ async fn test_get_user_and_notif() {
     use viva_padel_server::models::Alarm;
     let alarm = Alarm::default();
     let alarms_response = server
-        .post("/viva-padel/alarms")
+        .post("/alarms")
         .add_header(
             axum::http::header::AUTHORIZATION,
             format!("Bearer {}", token),
@@ -124,7 +118,7 @@ async fn test_get_user_and_notif() {
 
     // 3. Get user again and verify alarm is there
     let user_response = server
-        .get("/viva-padel/user")
+        .get("/user")
         .add_header(
             axum::http::header::AUTHORIZATION,
             format!("Bearer {}", token),
@@ -153,7 +147,7 @@ async fn test_signup_invalid_email() {
     let (server, _) = default_test_server().await;
 
     let response = server
-        .post("/viva-padel/signup")
+        .post("/signup")
         .json(&json!({ "email": "invalid-email" }))
         .await;
 
@@ -169,7 +163,7 @@ async fn test_register_device() {
 
     // 1. Signup
     let signup_response = server
-        .post("/viva-padel/signup")
+        .post("/signup")
         .json(&json!({ "email": email }))
         .await;
 
@@ -186,10 +180,7 @@ async fn test_register_device() {
     assert_eq!(db_user.email, email);
 
     // 2. Login
-    let login_response = server
-        .post("/viva-padel/login")
-        .json(&json!({ "email": email }))
-        .await;
+    let login_response = server.post("/login").json(&json!({ "email": email })).await;
 
     login_response.assert_status_ok();
     let login_data: serde_json::Value = login_response.json();
@@ -201,7 +192,7 @@ async fn test_register_device() {
     let notif_token = "notif_token";
     let device_id = Uuid::new_v4().to_string();
     let mobile_register_resp = server
-        .post("/viva-padel/register-device")
+        .post("/register-device")
         .add_header(
             axum::http::header::AUTHORIZATION,
             format!("Bearer {}", token),
@@ -224,7 +215,7 @@ async fn test_register_device() {
     let browser_id = "browser";
     let sub_token = web_push::SubscriptionInfo::default();
     let browser_register_resp = server
-        .post("/viva-padel/register-device")
+        .post("/register-device")
         .add_header(
             axum::http::header::AUTHORIZATION,
             format!("Bearer {}", token),
@@ -248,7 +239,7 @@ async fn test_register_device() {
 
     // Check that user info contain both devices
     let user_response = server
-        .get("/viva-padel/user")
+        .get("/user")
         .add_header(
             axum::http::header::AUTHORIZATION,
             format!("Bearer {}", token),

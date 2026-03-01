@@ -406,10 +406,19 @@ mod tests {
         old_cal.insert(yesterday.clone(), old_day.clone());
         new_cal.insert(yesterday.clone(), new_day.clone());
 
+        dbg!(new_cal.clone());
         // Slots in 1 hour today should not be counted
         let freed = freed_courts(&Availabilities(new_cal), &Availabilities(old_cal));
+        dbg!(&freed);
         // Only the passed slot and the slot in 30 minutes today should be ignored
-        assert_eq!(freed.iter().count(), 4);
+        if chrono::Local::now().time() < chrono::NaiveTime::from_hms_opt(0, 30, 0).unwrap() {
+            assert_eq!(freed.iter().count(), 5);
+        } else if chrono::Local::now().time() > chrono::NaiveTime::from_hms_opt(23, 30, 0).unwrap()
+        {
+            assert_eq!(freed.iter().count(), 3);
+        } else {
+            assert_eq!(freed.iter().count(), 4);
+        }
         assert!(freed.iter().all(|(_, _, _, price)| price.bookable()));
     }
 

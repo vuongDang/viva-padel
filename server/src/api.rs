@@ -62,17 +62,6 @@ impl From<DBError> for ApiError {
 }
 
 pub fn create_router(state: AppState) -> Router {
-    let api_router = Router::new()
-        .route("/calendar", get(get_calendar))
-        .route("/health", get(health_check))
-        .route("/signup", post(signup))
-        .route("/login", post(login))
-        .route("/register-device", post(register_device))
-        .route("/alarms", post(update_alarms))
-        .route("/user", get(get_user))
-        .route("/test-notification", get(test_notification))
-        .layer(TraceLayer::new_for_http());
-
     let cors = if cfg!(feature = "local_dev") {
         CorsLayer::permissive()
     } else {
@@ -83,7 +72,14 @@ pub fn create_router(state: AppState) -> Router {
     };
 
     Router::new()
-        .nest("/viva-padel", api_router)
+        .route("/calendar", get(get_calendar))
+        .route("/health", get(health_check))
+        .route("/signup", post(signup))
+        .route("/login", post(login))
+        .route("/register-device", post(register_device))
+        .route("/alarms", post(update_alarms))
+        .route("/user", get(get_user))
+        .route("/test-notification", get(test_notification))
         .layer(TraceLayer::new_for_http())
         .layer(axum::Extension(state.clone()))
         .layer(cors)

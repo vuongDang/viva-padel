@@ -28,7 +28,7 @@ services:
       context: ./client
       dockerfile: Dockerfile
       args:
-        - EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL:-http://localhost:3000/viva-padel}
+        - EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL:-http://localhost:3000}
         # take value from env or default test value
         - EXPO_PUBLIC_VAPID_PUBLIC_KEY=${EXPO_PUBLIC_VAPID_PUBLIC_KEY:- BPxwXQ-MQXONA6m3UHVk3G29hsx_G0Z7ufl0xZ5yK5qY_q2HSfwbvXSipwdksgthcGtCeJeM3a9OU8kF0VHskaM}
     image: viva-padel-client:client
