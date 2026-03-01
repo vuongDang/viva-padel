@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO browsers (browser_id, user_id, endpoint, p256dh, auth, last_seen) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)\n            ON CONFLICT(browser_id)\n            DO UPDATE SET\n            user_id = excluded.user_id,\n            endpoint = excluded.endpoint,\n            p256dh = excluded.p256dh,\n            auth = excluded.auth,\n            last_seen = CURRENT_TIMESTAMP",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "ad560607e585528e9b5a6b63361c92d53c91ce84cae72c13af89d98e93006518"
+}

@@ -1,8 +1,10 @@
 use std::time::Duration;
 
 use serde_json::json;
+use uuid::Uuid;
 use viva_padel_server::Calendar;
 use viva_padel_server::mock::*;
+use viva_padel_server::models::{Device, User};
 use viva_padel_server::services::legarden::NB_DAYS_IN_BATCH;
 
 #[tokio::test]
@@ -158,4 +160,104 @@ async fn test_signup_invalid_email() {
     response.assert_status_bad_request();
     let error: serde_json::Value = response.json();
     assert!(error["error"].as_str().unwrap().contains("email"));
+}
+
+#[tokio::test]
+async fn test_register_device() {
+    let (server, state) = default_test_server().await;
+    let email = "test@example.com";
+
+    // 1. Signup
+    let signup_response = server
+        .post("/viva-padel/signup")
+        .json(&json!({ "email": email }))
+        .await;
+
+    signup_response.assert_status_success(); // 201 Created
+    let user_json: serde_json::Value = signup_response.json();
+    assert_eq!(user_json["email"], email);
+
+    // Verify in database
+    let db_user: User = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ?")
+        .bind(email)
+        .fetch_one(state.db.get_db_pool())
+        .await
+        .expect("User should exist in database");
+    assert_eq!(db_user.email, email);
+
+    // 2. Login
+    let login_response = server
+        .post("/viva-padel/login")
+        .json(&json!({ "email": email }))
+        .await;
+
+    login_response.assert_status_ok();
+    let login_data: serde_json::Value = login_response.json();
+    let token = login_data["token"]
+        .as_str()
+        .expect("token should be a string");
+
+    // Register mobile device
+    let notif_token = "notif_token";
+    let device_id = Uuid::new_v4().to_string();
+    let mobile_register_resp = server
+        .post("/viva-padel/register-device")
+        .add_header(
+            axum::http::header::AUTHORIZATION,
+            format!("Bearer {}", token),
+        )
+        .json(&json!(Device::new_mobile(&device_id, notif_token)))
+        .await;
+    mobile_register_resp.assert_status_ok();
+    // Check mobile in database
+    let db_mobile = sqlx::query!(
+        "SELECT device_id, notif_token FROM devices WHERE user_id = ?",
+        db_user.id
+    )
+    .fetch_one(state.db.get_db_pool())
+    .await
+    .expect("User should exist in database");
+    assert_eq!(db_mobile.device_id.unwrap(), device_id);
+    assert_eq!(db_mobile.notif_token, notif_token);
+
+    // Register browser device
+    let browser_id = "browser";
+    let sub_token = web_push::SubscriptionInfo::default();
+    let browser_register_resp = server
+        .post("/viva-padel/register-device")
+        .add_header(
+            axum::http::header::AUTHORIZATION,
+            format!("Bearer {}", token),
+        )
+        .json(&json!(Device::new_browser(browser_id, sub_token.clone())))
+        .await;
+    browser_register_resp.assert_status_ok();
+
+    // Check browsers in database
+    let db_browser = sqlx::query!(
+        "SELECT browser_id, endpoint, p256dh, auth FROM browsers WHERE user_id = ?",
+        db_user.id
+    )
+    .fetch_one(state.db.get_db_pool())
+    .await
+    .expect("User should exist in database");
+    assert_eq!(&db_browser.browser_id.unwrap(), browser_id);
+    assert_eq!(&db_browser.endpoint, &sub_token.endpoint);
+    assert_eq!(&db_browser.p256dh, &sub_token.keys.p256dh);
+    assert_eq!(&db_browser.auth, &sub_token.keys.auth);
+
+    // Check that user info contain both devices
+    let user_response = server
+        .get("/viva-padel/user")
+        .add_header(
+            axum::http::header::AUTHORIZATION,
+            format!("Bearer {}", token),
+        )
+        .await;
+
+    user_response.assert_status_success();
+    let response: viva_padel_server::api::GetUserResponse = user_response.json();
+    assert_eq!(response.devices.len(), 2);
+    assert_eq!(response.devices[0].device_id, device_id);
+    assert_eq!(response.devices[1].device_id, browser_id);
 }

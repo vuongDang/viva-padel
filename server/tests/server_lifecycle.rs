@@ -21,10 +21,20 @@ async fn test_server_lifecycle() {
     // Create user
     let user = state.db.create_user(email).await.unwrap();
 
-    // Register device
+    // Register mobile device
     state
         .db
-        .register_device(device_id, token, user.id)
+        .register_mobile(device_id, token, user.id)
+        .await
+        .unwrap();
+
+    let browser_id = "browser";
+    let sub_token = web_push::SubscriptionInfo::default();
+
+    // Register browser device
+    state
+        .db
+        .register_browser(sub_token, user.id, browser_id)
         .await
         .unwrap();
 
@@ -46,7 +56,7 @@ async fn test_server_lifecycle() {
         .lock()
         .await;
 
-    // dbg!(&notifications);
+    dbg!(&notifications);
     assert!(!notifications.is_empty())
 }
 
@@ -62,7 +72,7 @@ async fn test_server_no_notifications() {
     // Register device
     state
         .db
-        .register_device(device_id, token, user.id)
+        .register_mobile(device_id, token, user.id)
         .await
         .unwrap();
     // Register alarm

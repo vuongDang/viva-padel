@@ -35,7 +35,8 @@ async fn main() {
         //     Duration::from_secs(10),
         // ));
         let legarden = Arc::new(viva_padel_server::mock::MockLeGardenService::default());
-        let notifications = Arc::new(viva_padel_server::mock::MockNotificationsService::default());
+        // let notifications = Arc::new(viva_padel_server::mock::MockNotificationsService::default());
+        let notifications = Arc::new(viva_padel_server::services::ExpoNotificationsService);
         // let notifications = Arc::new(viva_padel_server::services::ExpoNotificationsService);
         let db = Arc::new(
             viva_padel_server::services::SQLiteDB::new()

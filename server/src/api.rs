@@ -1,6 +1,6 @@
 use crate::AppState;
 use crate::auth::AuthUser;
-use crate::models::{Alarm, User};
+use crate::models::{Alarm, Device, NotifInfo, User};
 use crate::services::database::DBError;
 use axum::extract::State;
 use axum::http::HeaderValue;
@@ -107,25 +107,28 @@ pub(crate) async fn health_check() -> Json<HealthResponse> {
     })
 }
 
-#[derive(Deserialize)]
-pub struct RegisterDeviceRequest {
-    pub notif_token: String,
-    pub device_id: String,
-}
-
 pub(crate) async fn register_device(
     auth: AuthUser,
     State(state): State<AppState>,
-    Json(payload): Json<RegisterDeviceRequest>,
+    Json(payload): Json<Device>,
 ) -> Result<StatusCode, ApiError> {
     let user_id = Uuid::parse_str(&auth.user_id)
         .map_err(|e| ApiError::BadRequest(format!("ID utilisateur invalide: {}", e)))?;
-
-    // Insert or update device
-    state
-        .db
-        .register_device(&payload.device_id, &payload.notif_token, user_id)
-        .await?;
+    match payload.notif_info {
+        NotifInfo::Mobile(notif_token) => {
+            // Insert or update device
+            state
+                .db
+                .register_mobile(&payload.device_id, &notif_token, user_id)
+                .await?;
+        }
+        NotifInfo::Web(info) => {
+            state
+                .db
+                .register_browser(info, user_id, &payload.device_id)
+                .await?;
+        }
+    }
 
     Ok(StatusCode::OK)
 }
@@ -154,7 +157,7 @@ pub(crate) async fn update_alarms(
 pub struct GetUserResponse {
     pub user: User,
     pub alarms: Vec<Alarm>,
-    pub devices: Vec<String>,
+    pub devices: Vec<Device>,
 }
 
 pub(crate) async fn get_user(
@@ -241,8 +244,7 @@ pub(crate) async fn login(
 
 #[derive(Deserialize)]
 pub struct TestNotifRequest {
-    pub user_id: Option<Uuid>,
-    pub device_token: Option<String>,
+    pub user_id: Uuid,
     pub title: Option<String>,
     pub message: Option<String>,
 }
@@ -251,15 +253,8 @@ pub(crate) async fn test_notification(
     State(state): State<AppState>,
     Json(payload): Json<TestNotifRequest>,
 ) -> Result<StatusCode, ApiError> {
-    let mut tokens = vec![];
-    if let Some(uuid) = payload.user_id {
-        tokens = state.db.get_tokens_for_user(uuid).await?;
-    }
-    if let Some(token) = payload.device_token {
-        tokens.push(token);
-    }
+    let devices = state.db.get_devices_for_user(payload.user_id).await?;
 
-    // let data = Some(serde_json::json!({ "availabilities": final_avail}));
     let title = payload.title.as_deref().unwrap_or("Test Notification 🎾");
     let message = payload
         .message
@@ -268,7 +263,7 @@ pub(crate) async fn test_notification(
 
     if let Err(e) = state
         .notifications
-        .send_notification(&tokens, title, message, None)
+        .send_notification(&devices, title, message, None)
         .await
     {
         return Err(ApiError::Internal(e));

@@ -23,6 +23,7 @@ thiserror = "2.0"
 validator = { version = "0.20", features = ["derive"] }
 axum-test = { version = "*", optional = true }
 tracing-appender = "0.2.4"
+web-push = "0.11.0"
 
 
 [features]

@@ -1,4 +1,4 @@
-use crate::models::{Alarm, User};
+use crate::models::{Alarm, Device, User};
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 use thiserror::Error;
@@ -62,7 +62,7 @@ pub trait DataBaseService: Send + Sync {
             })
     }
 
-    async fn register_device(
+    async fn register_mobile(
         &self,
         device_id: &str,
         notif_token: &str,
@@ -84,14 +84,62 @@ pub trait DataBaseService: Send + Sync {
         Ok(())
     }
 
-    async fn get_devices_for_user(&self, user_id: Uuid) -> Result<Vec<String>, DBError> {
-        let rows = sqlx::query!(
-            r#"SELECT device_id FROM devices WHERE user_id = ?"#,
+    async fn register_browser(
+        &self,
+        sub: web_push::SubscriptionInfo,
+        user_id: Uuid,
+        browser_id: &str,
+    ) -> Result<(), DBError> {
+        let (endpoint, p256dh, auth) = (sub.endpoint, sub.keys.p256dh, sub.keys.auth);
+        sqlx::query!(
+            "INSERT INTO browsers (browser_id, user_id, endpoint, p256dh, auth, last_seen) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(browser_id)
+            DO UPDATE SET
+            user_id = excluded.user_id,
+            endpoint = excluded.endpoint,
+            p256dh = excluded.p256dh,
+            auth = excluded.auth,
+            last_seen = CURRENT_TIMESTAMP",
+            browser_id,
+            user_id,
+            endpoint,
+            p256dh,
+            auth
+        )
+        .execute(self.get_db_pool())
+        .await?;
+        Ok(())
+    }
+
+    async fn get_devices_for_user(&self, user_id: Uuid) -> Result<Vec<Device>, DBError> {
+        let rows_mobile = sqlx::query!(
+            r#"SELECT device_id, notif_token FROM devices WHERE user_id = ?"#,
             user_id
         )
         .fetch_all(self.get_db_pool())
         .await?;
-        Ok(rows.into_iter().filter_map(|r| r.device_id).collect())
+        let mut mobiles: Vec<Device> = rows_mobile
+            .into_iter()
+            .map(|r| Device::new_mobile(&r.device_id.unwrap(), &r.notif_token))
+            .collect();
+
+        let rows_browser = sqlx::query!(
+            r#"SELECT browser_id, endpoint, p256dh, auth FROM browsers WHERE user_id = ?"#,
+            user_id
+        )
+        .fetch_all(self.get_db_pool())
+        .await?;
+        let browsers: Vec<Device> = rows_browser
+            .into_iter()
+            .map(|r| {
+                Device::new_browser(
+                    &r.browser_id.unwrap(),
+                    web_push::SubscriptionInfo::new(r.endpoint, r.p256dh, r.auth),
+                )
+            })
+            .collect();
+        mobiles.extend(browsers);
+        Ok(mobiles)
     }
 
     async fn update_alarms(&self, user_id: Uuid, alarms: Vec<Alarm>) -> Result<(), DBError> {
@@ -153,16 +201,6 @@ pub trait DataBaseService: Send + Sync {
             })
             .collect();
         Ok(alarms)
-    }
-
-    async fn get_tokens_for_user(&self, user_id: Uuid) -> Result<Vec<String>, DBError> {
-        let rows = sqlx::query!(
-            r#"SELECT notif_token FROM devices WHERE user_id = ?"#,
-            user_id
-        )
-        .fetch_all(self.get_db_pool())
-        .await?;
-        Ok(rows.into_iter().map(|r| r.notif_token).collect())
     }
     fn get_db_pool(&self) -> &SqlitePool;
 }

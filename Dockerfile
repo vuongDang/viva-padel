@@ -15,6 +15,13 @@ FROM debian:bookworm-slim
 
 WORKDIR /usr/local/share/viva-padel-server/data
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libssl3 \
+    ca-certificates \
+    libsqlite3-0 && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN mkdir -p /usr/local/share/viva-padel-server/data
 # Directory for the database
 RUN groupadd --system --gid 1001 padelgroup && \

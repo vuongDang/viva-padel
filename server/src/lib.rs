@@ -202,15 +202,15 @@ pub(crate) async fn send_notifications_to_users(
 ) {
     for (user_id, availabilities_per_alarm) in avail_filtered_with_alarms {
         // 1. Get tokens for this user
-        let tokens = match state.db.get_tokens_for_user(*user_id).await {
+        let devices = match state.db.get_devices_for_user(*user_id).await {
             Ok(tokens) => tokens,
             Err(e) => {
-                tracing::error!("Failed to fetch tokens for user {}: {}", user_id, e);
+                tracing::error!("Failed to fetch devices for user {}: {}", user_id, e);
                 continue;
             }
         };
 
-        if tokens.is_empty() {
+        if devices.is_empty() {
             tracing::info!(
                 "No registered devices for user {}, skipping notification",
                 user_id
@@ -235,7 +235,7 @@ pub(crate) async fn send_notifications_to_users(
         let data = Some(serde_json::json!({ "user_id": user_id, "alarms": alarm_names }));
         if let Err(e) = state
             .notifications
-            .send_notification(&tokens, title, &body, data)
+            .send_notification(&devices, title, &body, data)
             .await
         {
             tracing::error!("Failed to send notification to user {}: {}", user_id, e);
@@ -315,7 +315,7 @@ mod tests {
         // Setup device
         state
             .db
-            .register_device(device_id, token, user.id)
+            .register_mobile(device_id, token, user.id)
             .await
             .unwrap();
 
@@ -359,7 +359,7 @@ mod tests {
         let mut old_day = DayPlanningResponse::default();
         let mut new_day = DayPlanningResponse::default();
 
-        // Make the slot start in 30 minues, should be ignored if today
+        // Make the slot start in 30 minutes, should be ignored if today
         let time_in_30_minutes = chrono::Local::now()
             .naive_local()
             .time()
@@ -393,18 +393,14 @@ mod tests {
         new_cal.insert(today.clone(), new_day.clone());
 
         // Insert one tomorrow
-        let tomorrow = chrono::Local::now()
-            .with_day(chrono::Local::now().day() + 1)
-            .unwrap()
+        let tomorrow = (chrono::Local::now() + TimeDelta::try_days(1).unwrap())
             .format(DATE_FORMAT)
             .to_string();
         old_cal.insert(tomorrow.clone(), old_day.clone());
         new_cal.insert(tomorrow.clone(), new_day.clone());
 
         // Insert one day before
-        let yesterday = chrono::Local::now()
-            .with_day(chrono::Local::now().day() - 1)
-            .unwrap()
+        let yesterday = (chrono::Local::now() - TimeDelta::try_days(1).unwrap())
             .format(DATE_FORMAT)
             .to_string();
         old_cal.insert(yesterday.clone(), old_day.clone());
@@ -500,8 +496,11 @@ pub fn setup_logging() -> WorkerGuard {
     tracing_subscriber::registry()
         .with(
             EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("trace"))
-                .add_directive("hyper=off".parse().unwrap_or_default()),
+            .unwrap_or_else(|_| {
+                EnvFilter::new(
+                    "info,viva_padel_server=trace,tower_http=debug,sqlx=warn,isahc=off,polling=off,web_push=warn,h2=off,curl=off",
+                )
+            })
         )
         .with(tracing_subscriber::fmt::layer())
         .with(file_layer)
