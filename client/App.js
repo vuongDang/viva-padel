@@ -167,7 +167,7 @@ export default function App() {
       if (error.message && error.message.includes("401")) {
         // Let onUnauthorized handle it
       } else {
-        Alert.alert("Connection Error", "The server is not available.");
+        showAlert("Connection Error", "The server is not available.");
       }
     } finally {
       setReservationsLoading(false);
@@ -317,24 +317,35 @@ export default function App() {
     }
 
     try {
-      const pushToken = await NotificationService.registerForPushNotificationsAsync();
+      const pushToken =
+        await NotificationService.registerForPushNotificationsAsync();
 
       if (!pushToken) {
-        if (Platform.OS === 'web' && window.Notification && window.Notification.permission === 'denied') {
-          throw new Error("Les notifications sont bloquées. Veuillez les autoriser dans les paramètres de votre navigateur.");
-        } else if (Platform.OS !== 'web') {
+        if (
+          Platform.OS === "web" &&
+          window.Notification &&
+          window.Notification.permission === "denied"
+        ) {
+          throw new Error(
+            "Les notifications sont bloquées. Veuillez les autoriser dans les paramètres de votre navigateur.",
+          );
+        } else if (Platform.OS !== "web") {
           const { status } = await Notifications.getPermissionsAsync();
-          if (status !== 'granted') {
-            throw new Error("Les notifications sont bloquées. Veuillez les autoriser dans les paramètres de votre appareil.");
+          if (status !== "granted") {
+            throw new Error(
+              "Les notifications sont bloquées. Veuillez les autoriser dans les paramètres de votre appareil.",
+            );
           }
         }
-        throw new Error("Impossible d'activer les notifications sur cet appareil.");
+        throw new Error(
+          "Impossible d'activer les notifications sur cet appareil.",
+        );
       }
 
       await NotificationService.registerDeviceWithServer(
         pushToken,
         user.token,
-        user.email
+        user.email,
       );
     } catch (pushError) {
       // Re-throw to be caught by the modal
@@ -456,7 +467,7 @@ export default function App() {
     const unsubscribe = onUnauthorized(() => {
       if (userRef.current) {
         handleLogout();
-        Alert.alert(
+        showAlert(
           "Session expirée",
           "Votre session n'est plus valide. Veuillez vous reconnecter.",
         );
@@ -609,7 +620,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 4,
         elevation: 5,
-      }
+      },
     }),
   },
   modalTitle: {
