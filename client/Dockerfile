@@ -13,6 +13,7 @@ RUN npm install
 COPY . .
 
 ARG EXPO_PUBLIC_API_URL
+ARG EXPO_PUBLIC_VAPID_PUBLIC_KEY
 
 # Build the web application (using the 'single' output configured in app.json)
 # This will output files to the `dist` directory by default in Expo >= 50

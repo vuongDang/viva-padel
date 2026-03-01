@@ -1,3 +1,6 @@
+/// This is only called for PWA applications 
+
+
 self.addEventListener('push', function (event) {
     if (!event.data) {
         return;
@@ -9,8 +12,8 @@ self.addEventListener('push', function (event) {
         const title = data.title || 'Viva Padel';
         const options = {
             body: data.body || '',
-            icon: '/assets/viva-padel-icon.png',
-            badge: '/assets/viva-padel-icon.png',
+            icon: '/viva-padel-icon.png',
+            badge: '/viva-padel-icon.png',
             data: data.data || {}
         };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
     StyleSheet,
     View,
@@ -7,10 +7,16 @@ import {
     TouchableOpacity,
     ScrollView,
     ActivityIndicator,
-    Alert
 } from "react-native";
+import { showAlert } from "../../utils/alert";
 
-export default function NotificationActivationModal({ visible, onClose, alarms, onToggleAlarm, onSync }) {
+export default function NotificationActivationModal({
+    visible,
+    onClose,
+    alarms,
+    onToggleAlarm,
+    onSync,
+}) {
     const [syncing, setSyncing] = useState(false);
     const [weeksAhead, setWeeksAhead] = useState(1);
 
@@ -18,10 +24,17 @@ export default function NotificationActivationModal({ visible, onClose, alarms, 
         setSyncing(true);
         try {
             await onSync(alarms, weeksAhead);
-            Alert.alert("Succès", "Vos notifications ont été synchronisées avec le serveur.");
+            showAlert(
+                "Succès",
+                "Vos notifications ont été synchronisées avec le serveur.",
+            );
             onClose();
         } catch (error) {
-            Alert.alert("Erreur", error.message || "Impossible de synchroniser les notifications.");
+            showAlert(
+                "Erreur",
+                error.message || "Impossible de synchroniser les notifications.",
+            );
+            console.error(error);
         } finally {
             setSyncing(false);
         }
@@ -31,18 +44,23 @@ export default function NotificationActivationModal({ visible, onClose, alarms, 
         setSyncing(true);
         try {
             await onSync([], weeksAhead);
-            Alert.alert("Succès", "Toutes les notifications ont été désactivées sur le serveur.");
+            showAlert(
+                "Succès",
+                "Toutes les notifications ont été désactivées sur le serveur.",
+            );
             onClose();
         } catch (error) {
-            Alert.alert("Erreur", error.message || "Impossible de désactiver les notifications.");
+            showAlert(
+                "Erreur",
+                error.message || "Impossible de désactiver les notifications.",
+            );
         } finally {
             setSyncing(false);
         }
     };
 
-
-    const incrementWeeks = () => setWeeksAhead(prev => Math.min(prev + 1, 4));
-    const decrementWeeks = () => setWeeksAhead(prev => Math.max(prev - 1, 1));
+    const incrementWeeks = () => setWeeksAhead((prev) => Math.min(prev + 1, 4));
+    const decrementWeeks = () => setWeeksAhead((prev) => Math.max(prev - 1, 1));
 
     return (
         <Modal
@@ -52,7 +70,11 @@ export default function NotificationActivationModal({ visible, onClose, alarms, 
             onRequestClose={onClose}
         >
             <View style={styles.overlay}>
-                <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
+                <TouchableOpacity
+                    style={styles.backdrop}
+                    activeOpacity={1}
+                    onPress={onClose}
+                />
                 <View style={styles.content}>
                     <View style={styles.header}>
                         <Text style={styles.title}>Activer les notifications</Text>
@@ -61,19 +83,29 @@ export default function NotificationActivationModal({ visible, onClose, alarms, 
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.scrollContent}
+                    >
                         <Text style={styles.description}>
-                            Recevez des notifications pour des terrains qui se libèrent sur vos créneaux favoris.
+                            Recevez des notifications pour des terrains qui se libèrent sur
+                            vos créneaux favoris.
                         </Text>
 
                         {/* Weeks Ahead Counter */}
                         <View style={styles.settingsSection}>
                             <View style={styles.counterContainer}>
-                                <TouchableOpacity style={styles.counterBtn} onPress={decrementWeeks}>
+                                <TouchableOpacity
+                                    style={styles.counterBtn}
+                                    onPress={decrementWeeks}
+                                >
                                     <Text style={styles.counterBtnText}>−</Text>
                                 </TouchableOpacity>
                                 <Text style={styles.counterValue}>{weeksAhead}</Text>
-                                <TouchableOpacity style={styles.counterBtn} onPress={incrementWeeks}>
+                                <TouchableOpacity
+                                    style={styles.counterBtn}
+                                    onPress={incrementWeeks}
+                                >
                                     <Text style={styles.counterBtnText}>+</Text>
                                 </TouchableOpacity>
                             </View>
@@ -85,16 +117,27 @@ export default function NotificationActivationModal({ visible, onClose, alarms, 
 
                         <Text style={styles.settingsLabel}>Notifications pour:</Text>
                         {alarms.map((alarm) => (
-
                             <TouchableOpacity
                                 key={alarm.id}
                                 style={styles.alarmRow}
                                 onPress={() => onToggleAlarm(alarm.id)}
                             >
-                                <View style={[styles.checkbox, alarm.activated && styles.checkboxChecked]}>
-                                    {alarm.activated && <Text style={styles.checkboxIcon}>✓</Text>}
+                                <View
+                                    style={[
+                                        styles.checkbox,
+                                        alarm.activated && styles.checkboxChecked,
+                                    ]}
+                                >
+                                    {alarm.activated && (
+                                        <Text style={styles.checkboxIcon}>✓</Text>
+                                    )}
                                 </View>
-                                <Text style={[styles.alarmName, alarm.activated && styles.alarmNameActive]}>
+                                <Text
+                                    style={[
+                                        styles.alarmName,
+                                        alarm.activated && styles.alarmNameActive,
+                                    ]}
+                                >
                                     {alarm.name}
                                 </Text>
                             </TouchableOpacity>
@@ -108,18 +151,24 @@ export default function NotificationActivationModal({ visible, onClose, alarms, 
                             {syncing ? (
                                 <ActivityIndicator color="#FFF" />
                             ) : (
-                                <Text style={styles.syncButtonText}>Synchroniser avec le serveur</Text>
+                                <Text style={styles.syncButtonText}>
+                                    Synchroniser avec le serveur
+                                </Text>
                             )}
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.deactivateButton, syncing && styles.disabledButton]}
+                            style={[
+                                styles.deactivateButton,
+                                syncing && styles.disabledButton,
+                            ]}
                             onPress={handleDeactivateAll}
                             disabled={syncing}
                         >
-                            <Text style={styles.deactivateButtonText}>Désactiver les notifications</Text>
+                            <Text style={styles.deactivateButtonText}>
+                                Désactiver les notifications
+                            </Text>
                         </TouchableOpacity>
-
                     </ScrollView>
                 </View>
             </View>
@@ -213,7 +262,6 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     alarmRow: {
-
         flexDirection: "row",
         alignItems: "center",
         paddingVertical: 12,
@@ -275,5 +323,4 @@ const styles = StyleSheet.create({
     disabledButton: {
         opacity: 0.6,
     },
-
 });

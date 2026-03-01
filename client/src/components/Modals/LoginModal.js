@@ -9,9 +9,9 @@ import {
     KeyboardAvoidingView,
     Platform,
     ActivityIndicator,
-    Alert,
 } from "react-native";
 import { AuthService } from "../../services/authService";
+import { showAlert } from "../../utils/alert";
 
 export default function LoginModal({ visible, onClose, onLogin }) {
     const [email, setEmail] = useState("");
@@ -47,7 +47,7 @@ export default function LoginModal({ visible, onClose, onLogin }) {
     };
 
     const showEmailInfo = () => {
-        Alert.alert(
+        showAlert(
             "Pourquoi l'email ?",
             "Votre email permet de synchroniser vos alertes et de vous notifier dès qu'un créneau correspondant à vos critères se libère. Dans des futures versions, vous pourrez réserver vos terrains directement depuis l'application avec le compte crée dans l'application officielle. Pour une meilleure expérience, nous vous recommandons d'utiliser le même email que celui utilisé dans l'application officielle.",
             [{ text: "Compris", style: "default" }]

@@ -5,6 +5,7 @@ import {
     Text,
     Modal,
     TouchableOpacity,
+    Platform,
 } from 'react-native';
 
 export default function LogoutConfirmationModal({ visible, onClose, onConfirm }) {
@@ -70,11 +71,18 @@ const styles = StyleSheet.create({
         width: '100%',
         maxWidth: 340,
         overflow: 'hidden',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
+        ...Platform.select({
+            web: {
+                boxShadow: '0px 2px 3.84px rgba(0, 0, 0, 0.25)',
+            },
+            default: {
+                elevation: 5,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 3.84,
+            }
+        })
     },
     header: {
         padding: 24,

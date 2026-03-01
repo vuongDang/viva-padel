@@ -1,33 +1,51 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import HomeScreen from './src/screens/HomeScreen';
-import CalendarScreen from './src/screens/CalendarScreen';
-import TimeSlotsScreen from './src/screens/TimeSlotsScreen';
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
+import {
+  Modal,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  LogBox,
+} from "react-native";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import HomeScreen from "./src/screens/HomeScreen";
+import CalendarScreen from "./src/screens/CalendarScreen";
+import TimeSlotsScreen from "./src/screens/TimeSlotsScreen";
+import { showAlert } from "./src/utils/alert";
 
-import CustomDrawer from './src/components/CustomDrawer';
-import * as Notifications from 'expo-notifications';
-import * as Updates from 'expo-updates';
-import { fetchWithTimeout, onUnauthorized } from './src/utils/apiUtils';
-import { NotificationService } from './src/services/notificationService';
-import { AuthService } from './src/services/authService';
-import { AlarmService } from './src/services/alarmService';
-import { CalendarService } from './src/services/calendarService';
-import { matchesFilter } from './src/utils/filterUtils';
-import { Logger } from './src/utils/logger';
-import DebugOverlay from './src/components/DebugOverlay';
+import CustomDrawer from "./src/components/CustomDrawer";
+import * as Notifications from "expo-notifications";
+import * as Updates from "expo-updates";
+import { fetchWithTimeout, onUnauthorized } from "./src/utils/apiUtils";
+import { NotificationService } from "./src/services/notificationService";
+import { AuthService } from "./src/services/authService";
+import { AlarmService } from "./src/services/alarmService";
+import { CalendarService } from "./src/services/calendarService";
+import { matchesFilter } from "./src/utils/filterUtils";
+import { Logger } from "./src/utils/logger";
+import DebugOverlay from "./src/components/DebugOverlay";
 
 // Initialize logger to intercept console logs
 Logger.init();
+LogBox.ignoreLogs([
+  "[expo-notifications] Listening to push token changes is not yet fully supported on web.",
+]);
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [debugVisible, setDebugVisible] = useState(false);
-  const [currentScreen, setCurrentScreen] = useState('Home');
+  const [currentScreen, setCurrentScreen] = useState("Home");
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const navigationRef = React.useRef(null);
@@ -39,26 +57,27 @@ export default function App() {
   const [alarms, setAlarms] = useState([]);
   const [matchedResults, setMatchedResults] = useState({});
 
-  const lastResponse = Platform.OS === 'web' ? null : Notifications.useLastNotificationResponse();
+  const lastResponse =
+    Platform.OS === "web" ? null : Notifications.useLastNotificationResponse();
 
   useEffect(() => {
     async function updateListener() {
-      if (Platform.OS === 'web') return;
+      if (Platform.OS === "web") return;
       try {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
           await Updates.fetchUpdateAsync();
-          Alert.alert(
+          showAlert(
             "Mise à jour disponible",
             "Une nouvelle version de l'application est prête. Redémarrer maintenant pour l'utiliser ?",
             [
               { text: "Plus tard", style: "cancel" },
-              { text: "Redémarrer", onPress: () => Updates.reloadAsync() }
-            ]
+              { text: "Redémarrer", onPress: () => Updates.reloadAsync() },
+            ],
           );
         }
       } catch (error) {
-        console.log('[App] Error checking for updates:', error);
+        console.log("[App] Error checking for updates:", error);
       }
     }
 
@@ -86,25 +105,28 @@ export default function App() {
         if (!dayAvail?.["hydra:member"]) return;
 
         const filteredPlaygrounds = [];
-        dayAvail["hydra:member"].forEach(playground => {
+        dayAvail["hydra:member"].forEach((playground) => {
           const filteredActivities = [];
-          playground.activities.forEach(activity => {
-            const filteredSlots = activity.slots.filter(slot =>
-              matchesFilter(slot, playground, dateStr, alarmId, alarmData)
+          playground.activities.forEach((activity) => {
+            const filteredSlots = activity.slots.filter((slot) =>
+              matchesFilter(slot, playground, dateStr, alarmId, alarmData),
             );
             if (filteredSlots.length > 0) {
               filteredActivities.push({ ...activity, slots: filteredSlots });
             }
           });
           if (filteredActivities.length > 0) {
-            filteredPlaygrounds.push({ ...playground, activities: filteredActivities });
+            filteredPlaygrounds.push({
+              ...playground,
+              activities: filteredActivities,
+            });
           }
         });
 
         if (filteredPlaygrounds.length > 0) {
           filteredDays[dateStr] = {
             ...dayAvail,
-            "hydra:member": filteredPlaygrounds
+            "hydra:member": filteredPlaygrounds,
           };
         }
       });
@@ -112,10 +134,10 @@ export default function App() {
     };
 
     // 1. Calculate matches for "all" (Tous)
-    matches.all = filterDataTree('all', []);
+    matches.all = filterDataTree("all", []);
 
     // 2. Calculate matches for each alarm
-    alarms.forEach(alarm => {
+    alarms.forEach((alarm) => {
       matches[alarm.id] = filterDataTree(alarm.id, alarms);
     });
 
@@ -129,11 +151,11 @@ export default function App() {
 
   const fetchReservations = useCallback(async (isRefresh = false) => {
     if (!isRefresh && hasFetchedReservations.current) {
-      console.log('[App] Skipping fetch, using cached data');
+      console.log("[App] Skipping fetch, using cached data");
       return;
     }
 
-    console.log('[App] Fetching reservations data...');
+    console.log("[App] Fetching reservations data...");
     setReservationsLoading(true);
 
     try {
@@ -142,7 +164,7 @@ export default function App() {
       setCalendarTimestamp(data.timestamp || null);
       hasFetchedReservations.current = true;
     } catch (error) {
-      if (error.message && error.message.includes('401')) {
+      if (error.message && error.message.includes("401")) {
         // Let onUnauthorized handle it
       } else {
         Alert.alert("Connection Error", "The server is not available.");
@@ -158,42 +180,50 @@ export default function App() {
 
       // Proactively ensure device registration is up to date with the latest token
       // (Required to switch from Expo Go tokens to Native build tokens)
-      console.log('[App] Refreshing device registration...');
-      const pushToken = await NotificationService.registerForPushNotificationsAsync();
+      console.log("[App] Refreshing device registration...");
+      const pushToken =
+        await NotificationService.registerForPushNotificationsAsync();
       if (pushToken) {
-        await NotificationService.registerDeviceWithServer(pushToken, token, email);
+        await NotificationService.registerDeviceWithServer(
+          pushToken,
+          token,
+          email,
+        );
       }
 
       if (data.alarms) {
         const serverMapped = AlarmService.mapServerAlarmsToMobile(data.alarms);
 
-        setAlarms(prevAlarms => {
+        setAlarms((prevAlarms) => {
           // Merging logic: Server alarms take precedence on name match
           // We use a Map to handle duplicates by name easily
           const alarmMap = new Map();
 
           // 1. Load local ones first
-          prevAlarms.forEach(a => alarmMap.set(a.name, a));
+          prevAlarms.forEach((a) => alarmMap.set(a.name, a));
 
           // 2. Overwrite or add with server ones
-          serverMapped.forEach(sa => {
+          serverMapped.forEach((sa) => {
             alarmMap.set(sa.name, sa);
           });
 
           const merged = Array.from(alarmMap.values());
-          console.log('[App] Merged alarms with server precedence. Total:', merged.length);
+          console.log(
+            "[App] Merged alarms with server precedence. Total:",
+            merged.length,
+          );
           return merged;
         });
       }
     } catch (error) {
-      console.error('[App] Failed to fetch user info:', error);
+      console.error("[App] Failed to fetch user info:", error);
       // If user info fails but we have token/email, we still stay logged in
       // but alarms won't be synced.
     }
   }, []);
 
   const handleIncomingMatchedResults = useCallback(async (newResults) => {
-    setMatchedResults(prev => {
+    setMatchedResults((prev) => {
       const updated = { ...prev };
       Object.entries(newResults).forEach(([alarmName, days]) => {
         updated[alarmName] = { ...(updated[alarmName] || {}), ...days };
@@ -229,10 +259,10 @@ export default function App() {
 
   const handleSaveAlarm = async (alarmConfig) => {
     let finalName = alarmConfig.name;
-    const otherAlarms = alarms.filter(a => a.id !== alarmConfig.id);
+    const otherAlarms = alarms.filter((a) => a.id !== alarmConfig.id);
 
     let counter = 1;
-    while (otherAlarms.some(a => a.name === finalName)) {
+    while (otherAlarms.some((a) => a.name === finalName)) {
       finalName = `${alarmConfig.name} ${counter}`;
       counter++;
     }
@@ -243,12 +273,14 @@ export default function App() {
 
     if (alarmConfig.id) {
       finalAlarm = configWithUniqueName;
-      updatedAlarms = alarms.map(a => a.id === alarmConfig.id ? finalAlarm : a);
+      updatedAlarms = alarms.map((a) =>
+        a.id === alarmConfig.id ? finalAlarm : a,
+      );
     } else {
       finalAlarm = {
         ...configWithUniqueName,
         id: Date.now().toString(),
-        activated: true
+        activated: true,
       };
       updatedAlarms = [...alarms, finalAlarm];
     }
@@ -257,19 +289,19 @@ export default function App() {
   };
 
   const handleDeleteAlarm = (id) => {
-    const updatedAlarms = alarms.filter(alarm => alarm.id !== id);
+    const updatedAlarms = alarms.filter((alarm) => alarm.id !== id);
     handleUpdateAlarms(updatedAlarms);
   };
 
   const handleToggleAlarm = (id) => {
-    const updatedAlarms = alarms.map(alarm =>
-      alarm.id === id ? { ...alarm, activated: !alarm.activated } : alarm
+    const updatedAlarms = alarms.map((alarm) =>
+      alarm.id === id ? { ...alarm, activated: !alarm.activated } : alarm,
     );
     handleUpdateAlarms(updatedAlarms);
   };
 
   const handleClearMatchedResult = async (alarmName) => {
-    setMatchedResults(prev => {
+    setMatchedResults((prev) => {
       const updated = { ...prev };
       delete updated[alarmName];
       AlarmService.saveMatchedResults(updated);
@@ -278,7 +310,37 @@ export default function App() {
   };
 
   const handleSyncAlarms = async (alarmsToSync, weeksAhead) => {
-    if (!user) throw new Error("Veuillez vous connecter pour synchroniser vos créneaux.");
+    if (!user) {
+      throw new Error(
+        "Veuillez vous connecter pour synchroniser vos créneaux.",
+      );
+    }
+
+    try {
+      const pushToken = await NotificationService.registerForPushNotificationsAsync();
+
+      if (!pushToken) {
+        if (Platform.OS === 'web' && window.Notification && window.Notification.permission === 'denied') {
+          throw new Error("Les notifications sont bloquées. Veuillez les autoriser dans les paramètres de votre navigateur.");
+        } else if (Platform.OS !== 'web') {
+          const { status } = await Notifications.getPermissionsAsync();
+          if (status !== 'granted') {
+            throw new Error("Les notifications sont bloquées. Veuillez les autoriser dans les paramètres de votre appareil.");
+          }
+        }
+        throw new Error("Impossible d'activer les notifications sur cet appareil.");
+      }
+
+      await NotificationService.registerDeviceWithServer(
+        pushToken,
+        user.token,
+        user.email
+      );
+    } catch (pushError) {
+      // Re-throw to be caught by the modal
+      throw pushError;
+    }
+
     return await AlarmService.syncAlarms(alarmsToSync || alarms, weeksAhead);
   };
 
@@ -306,7 +368,7 @@ export default function App() {
 
       if (data?.availabilities) {
         handleIncomingMatchedResults(data.availabilities);
-        navigateTo('TimeSlots');
+        navigateTo("TimeSlots");
       } else {
         const { title, body } = lastResponse.notification.request.content;
         setSelectedNotification({ title, body });
@@ -322,7 +384,7 @@ export default function App() {
     const setup = async () => {
       const [localAlarms, localResults] = await Promise.all([
         AlarmService.getLocalAlarms(),
-        AlarmService.getMatchedResults()
+        AlarmService.getMatchedResults(),
       ]);
 
       if (localAlarms?.length > 0) setAlarms(localAlarms);
@@ -334,7 +396,7 @@ export default function App() {
       const email = await AuthService.getEmail();
       if (token && email) {
         setUser({ email, token });
-        console.log('[App] Authenticated user found:', email);
+        console.log("[App] Authenticated user found:", email);
         fetchUserInfo(token, email);
       }
 
@@ -344,39 +406,51 @@ export default function App() {
     setup();
 
     let tokenSubscription;
-    if (Platform.OS !== 'web') {
+    if (Platform.OS !== "web") {
       tokenSubscription = Notifications.addPushTokenListener(async (token) => {
-        console.log('[App] Push token changed:', token.data);
+        console.log("[App] Push token changed:", token.data);
         const currentUser = userRef.current;
         if (currentUser) {
-          await NotificationService.registerDeviceWithServer(token.data, currentUser.token, currentUser.email);
+          await NotificationService.registerDeviceWithServer(
+            token.data,
+            currentUser.token,
+            currentUser.email,
+          );
         }
       });
     }
 
     const cleanupListeners = NotificationService.initListeners(
       (notification) => {
-        console.log('Foreground notification:', notification.request.content.title);
+        console.log(
+          "Foreground notification:",
+          notification.request.content.title,
+        );
       },
       (response) => {
         const { data } = response.notification.request.content;
 
         if (data?.availabilities) {
           handleIncomingMatchedResults(data.availabilities);
-          navigateTo('TimeSlots');
+          navigateTo("TimeSlots");
         } else {
           const { title, body } = response.notification.request.content;
           setSelectedNotification({ title, body });
           setModalVisible(true);
         }
-      }
+      },
     );
 
     return () => {
       cleanupListeners();
       if (tokenSubscription) tokenSubscription.remove();
     };
-  }, [fetchUserInfo, fetchReservations, handleIncomingMatchedResults, navigateTo]);
+  }, [
+    fetchUserInfo,
+    fetchReservations,
+    handleIncomingMatchedResults,
+    navigateTo,
+  ]);
 
   useEffect(() => {
     const unsubscribe = onUnauthorized(() => {
@@ -384,7 +458,7 @@ export default function App() {
         handleLogout();
         Alert.alert(
           "Session expirée",
-          "Votre session n'est plus valide. Veuillez vous reconnecter."
+          "Votre session n'est plus valide. Veuillez vous reconnecter.",
         );
       }
     });
@@ -393,12 +467,13 @@ export default function App() {
 
   useEffect(() => {
     if (isInitialAlarmsLoaded.current) {
-      console.log('[App] Auto-saving alarms to local storage...', alarms.length);
+      console.log(
+        "[App] Auto-saving alarms to local storage...",
+        alarms.length,
+      );
       AlarmService.saveLocalAlarms(alarms);
     }
   }, [alarms]);
-
-
 
   return (
     <SafeAreaProvider>
@@ -406,7 +481,7 @@ export default function App() {
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
-            animation: 'slide_from_right',
+            animation: "slide_from_right",
             freezeOnBlur: true,
           }}
           detachInactiveScreens={true}
@@ -494,9 +569,14 @@ export default function App() {
       >
         <View style={styles.modalBg}>
           <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>{selectedNotification?.title || 'Notification'}</Text>
+            <Text style={styles.modalTitle}>
+              {selectedNotification?.title || "Notification"}
+            </Text>
             <Text style={styles.modalBody}>{selectedNotification?.body}</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setModalVisible(false)}
+            >
               <Text style={styles.closeButtonText}>Fermer</Text>
             </TouchableOpacity>
           </View>
@@ -509,43 +589,50 @@ export default function App() {
 const styles = StyleSheet.create({
   modalBg: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
   modalContainer: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 20,
     padding: 25,
-    width: '90%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5
+    width: "90%",
+    ...Platform.select({
+      web: {
+        boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.25)",
+      },
+      default: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+      }
+    }),
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
-    color: '#333'
+    color: "#333",
   },
   modalBody: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     marginBottom: 20,
-    lineHeight: 22
+    lineHeight: 22,
   },
   closeButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
     paddingVertical: 12,
     borderRadius: 10,
-    alignItems: 'center'
+    alignItems: "center",
   },
   closeButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '600'
-  }
+    fontWeight: "600",
+  },
 });

@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export const theme = {
     colors: {
         primary: '#1A1A1A',
@@ -23,20 +25,26 @@ export const theme = {
     },
 
     shadows: {
-        small: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 2,
-        },
-        medium: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 4,
-            elevation: 5,
-        }
+        small: Platform.select({
+            web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)' },
+            default: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 2,
+            }
+        }),
+        medium: Platform.select({
+            web: { boxShadow: '0px 4px 4px rgba(0, 0, 0, 0.3)' },
+            default: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 5,
+            }
+        })
     },
     spacing: {
         xs: 4,

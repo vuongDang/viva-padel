@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { StyleSheet, TouchableOpacity, Text, ActivityIndicator, Platform } from 'react-native';
 
 const FloatingRefreshButton = ({ onPress, loading, style }) => {
     return (
@@ -26,11 +26,18 @@ const styles = StyleSheet.create({
         height: 50,
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
+        ...Platform.select({
+            web: {
+                boxShadow: '0px 4px 4px rgba(0, 0, 0, 0.3)',
+            },
+            default: {
+                elevation: 5,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+            }
+        }),
         zIndex: 10,
     },
 
