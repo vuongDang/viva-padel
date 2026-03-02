@@ -3,7 +3,7 @@ import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { storage } from "../utils/storage";
-import { fetchWithTimeout } from "../utils/apiUtils";
+import { apiFetch } from "../utils/apiUtils";
 
 const isWeb = Platform.OS === "web";
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -33,8 +33,6 @@ if (!isWeb) {
     }),
   });
 }
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export const NotificationService = {
   /**
@@ -309,10 +307,9 @@ export const NotificationService = {
       var response = null;
       if (isWeb) {
         const subscription = JSON.parse(pushToken);
-        response = await fetchWithTimeout(`${API_URL}/register-device`, {
+        response = await apiFetch('/register-device', {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
@@ -323,14 +320,10 @@ export const NotificationService = {
           }),
         });
       } else {
-        response = await fetchWithTimeout(`${API_URL}/register-device`, {
+        response = await apiFetch('/register-device', {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${userToken}`,
-            "CF-Access-Client-Id": process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID,
-            "CF-Access-Client-Secret":
-              process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET,
           },
           body: JSON.stringify({
             device_id: deviceId,

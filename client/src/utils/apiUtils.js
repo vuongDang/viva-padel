@@ -1,4 +1,7 @@
 import { CONFIG } from '../config';
+import { Platform } from 'react-native';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const unauthorizedListeners = new Set();
 export const onUnauthorized = (callback) => {
@@ -36,3 +39,42 @@ export async function fetchWithTimeout(url, options = {}) {
         throw error;
     }
 }
+
+/**
+ * Generic backend API caller.
+ *
+ * Builds the full URL as `${API_URL}${endpoint}` and automatically:
+ *   - Sets Content-Type: application/json
+ *   - Adds CF Access headers (Client-Id + Client-Secret) on non-web platforms
+ *   - Merges any extra headers / options you pass in
+ *
+ * @param {string} endpoint  - Path relative to API_URL, e.g. "/calendar"
+ * @param {RequestInit} options - fetch options (method, headers, body, …)
+ * @returns {Promise<Response>}
+ */
+export async function apiFetch(endpoint, options = {}) {
+    const { headers: extraHeaders = {}, ...restOptions } = options;
+
+    const baseHeaders = {
+        'Content-Type': 'application/json',
+        ...extraHeaders,
+    };
+
+    // Append Cloudflare Access headers only on native (non-web) platforms
+    if (Platform.OS !== 'web') {
+        if (process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID) {
+            baseHeaders['CF-Access-Client-Id'] = process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID;
+        }
+        if (process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET) {
+            baseHeaders['CF-Access-Client-Secret'] = process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET;
+        }
+    } else {
+        baseHeaders['credentials'] = 'include';
+    }
+
+    return fetchWithTimeout(`${API_URL}${endpoint}`, {
+        ...restOptions,
+        headers: baseHeaders,
+    });
+}
+

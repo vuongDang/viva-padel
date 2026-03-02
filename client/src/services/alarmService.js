@@ -1,8 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from "./authService";
-import { fetchWithTimeout } from '../utils/apiUtils';
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+import { apiFetch } from '../utils/apiUtils';
 
 const WEEKDAY_MAP = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const LOCAL_ALARMS_KEY = 'viva_padel_local_alarms';
@@ -73,13 +71,10 @@ export const AlarmService = {
 
 
         try {
-            const response = await fetchWithTimeout(`${API_URL}/alarms`, {
+            const response = await apiFetch('/alarms', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`,
-                    'CF-Access-Client-Id': process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID,
-                    'CF-Access-Client-Secret': process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET,
                 },
                 body: JSON.stringify({ alarms: mappedAlarms }),
             });

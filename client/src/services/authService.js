@@ -1,7 +1,6 @@
 import { storage } from '../utils/storage';
-import { fetchWithTimeout } from '../utils/apiUtils';
+import { apiFetch } from '../utils/apiUtils';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
 const TOKEN_KEY = 'viva_padel_auth_token';
 const EMAIL_KEY = 'viva_padel_user_email';
 
@@ -12,13 +11,8 @@ export const AuthService = {
      */
     signup: async (email) => {
         try {
-            const response = await fetchWithTimeout(`${API_URL}/signup`, {
+            const response = await apiFetch('/signup', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'CF-Access-Client-Id': process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID,
-                    'CF-Access-Client-Secret': process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET,
-                },
                 body: JSON.stringify({ email }),
             });
 
@@ -47,13 +41,8 @@ export const AuthService = {
      */
     login: async (email) => {
         try {
-            const response = await fetchWithTimeout(`${API_URL}/login`, {
+            const response = await apiFetch('/login', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'CF-Access-Client-Id': process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID,
-                    'CF-Access-Client-Secret': process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET,
-                },
                 body: JSON.stringify({ email }),
             });
 
@@ -101,12 +90,10 @@ export const AuthService = {
      */
     getUserInfo: async (token) => {
         try {
-            const response = await fetchWithTimeout(`${API_URL}/user`, {
+            const response = await apiFetch('/user', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'CF-Access-Client-Id': process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID,
-                    'CF-Access-Client-Secret': process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET,
                 },
             });
 
