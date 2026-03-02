@@ -69,6 +69,8 @@ pub fn create_router(state: AppState) -> Router {
         CorsLayer::new()
             .allow_origin(pwa_url.parse::<HeaderValue>().unwrap())
             .allow_methods([Method::GET, Method::POST])
+            .allow_headers([http::header::CONTENT_TYPE, http::header::AUTHORIZATION])
+            .allow_credentials(true)
     };
 
     Router::new()
