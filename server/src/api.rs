@@ -13,7 +13,7 @@ use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
-use tower_http::cors::{AllowOrigin, CorsLayer};
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 use validator::Validate;
@@ -67,10 +67,16 @@ pub fn create_router(state: AppState) -> Router {
     tracing::info!("PWA_URL: {}", &pwa_url);
     let cors = CorsLayer::new()
         .allow_origin(pwa_url.parse::<HeaderValue>().unwrap())
-        .allow_origin(AllowOrigin::any())
+        .allow_origin(
+            "https://viva-padel-app.xoi-lap-xuong.com"
+                .parse::<HeaderValue>()
+                .unwrap(),
+        )
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_headers([http::header::CONTENT_TYPE, http::header::AUTHORIZATION])
         .allow_credentials(true);
+
+    tracing::info!("CORS: {:?}", cors);
 
     Router::new()
         .route("/calendar", get(get_calendar))
