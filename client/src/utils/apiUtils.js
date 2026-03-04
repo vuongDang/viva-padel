@@ -73,7 +73,7 @@ export async function apiFetch(endpoint, options = {}) {
   } else {
     // For web we reinject the token that was given when logged in
     const cf_token = getCloudflareToken();
-    baseHeaders["Authorization"] = "Bearer ${cf_token}";
+    baseHeaders["Authorization"] = `Bearer ${cf_token}`;
     // restOptions.credentials = "include";
   }
 
