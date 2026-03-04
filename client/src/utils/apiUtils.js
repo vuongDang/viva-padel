@@ -71,12 +71,30 @@ export async function apiFetch(endpoint, options = {}) {
         process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET;
     }
   } else {
-    // For web we use credentials cookie from CF login
-    restOptions.credentials = "include";
+    // For web we reinject the token that was given when logged in
+    const cf_token = getCloudflareToken();
+    baseHeaders["Authorization"] = "Bearer ${cf_token}";
+    // restOptions.credentials = "include";
   }
 
   return fetchWithTimeout(`${API_URL}${endpoint}`, {
     ...restOptions,
     headers: baseHeaders,
   });
+}
+
+// Get Cloudflare Token for web app
+function getCloudflareToken() {
+  if (Platform.OS == "web") {
+    const name = "CF_Authorization=";
+    const decodedCookie = decodeURIComponent(document.cookie);
+    const ca = decodedCookie.split(";");
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i].trim();
+      if (c.indexOf(name) === 0) {
+        return c.substring(name.length, c.length);
+      }
+    }
+  }
+  return "";
 }

@@ -1,8 +1,5 @@
-use axum::{
-    extract::FromRequestParts,
-    http::request::Parts,
-};
 use crate::api::ApiError;
+use axum::{extract::FromRequestParts, http::request::Parts};
 use jsonwebtoken::{DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -33,9 +30,9 @@ where
         // 1. Get the Authorization header
         let auth_header = parts
             .headers
-            .get("Authorization")
+            .get("Internal-Auth")
             .and_then(|value| value.to_str().ok())
-            .ok_or_else(|| ApiError::Unauthorized("Missing Authorization header".into()))?;
+            .ok_or_else(|| ApiError::Unauthorized("Missing Internal-Auth header".into()))?;
 
         // 2. Check if it starts with "Bearer "
         if !auth_header.starts_with("Bearer ") {
@@ -60,7 +57,7 @@ where
             .db
             .get_user_by_id(user_id)
             .await
-            .map_err(|_| ApiError::Unauthorized("Utilisateur non trouvé ou session expirée".into()))?;
+            .map_err(|_| ApiError::Unauthorized("Invalid cloudflare token".into()))?;
 
         // 5. Return the authenticated user
         Ok(AuthUser {

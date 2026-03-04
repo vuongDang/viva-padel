@@ -1,123 +1,123 @@
-import { storage } from '../utils/storage';
-import { apiFetch } from '../utils/apiUtils';
+import { storage } from "../utils/storage";
+import { apiFetch } from "../utils/apiUtils";
 
-const TOKEN_KEY = 'viva_padel_auth_token';
-const EMAIL_KEY = 'viva_padel_user_email';
+const TOKEN_KEY = "viva_padel_auth_token";
+const EMAIL_KEY = "viva_padel_user_email";
 
 export const AuthService = {
-    /**
-     * Signup a new user.
-     * @param {string} email 
-     */
-    signup: async (email) => {
+  /**
+   * Signup a new user.
+   * @param {string} email
+   */
+  signup: async (email) => {
+    try {
+      const response = await apiFetch("/signup", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = "Failed to signup";
         try {
-            const response = await apiFetch('/signup', {
-                method: 'POST',
-                body: JSON.stringify({ email }),
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                let errorMessage = 'Failed to signup';
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    errorMessage = errorJson.error || errorMessage;
-                } catch (e) {
-                    errorMessage = errorText || errorMessage;
-                }
-                throw new Error(errorMessage);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('[AuthService] Signup Error:', error);
-            throw error;
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorMessage;
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
         }
-    },
+        throw new Error(errorMessage);
+      }
 
-    /**
-     * Login an existing user and store the token.
-     * @param {string} email 
-     */
-    login: async (email) => {
+      return await response.json();
+    } catch (error) {
+      console.error("[AuthService] Signup Error:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Login an existing user and store the token.
+   * @param {string} email
+   */
+  login: async (email) => {
+    try {
+      const response = await apiFetch("/login", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = "Failed to login";
         try {
-            const response = await apiFetch('/login', {
-                method: 'POST',
-                body: JSON.stringify({ email }),
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                let errorMessage = 'Failed to login';
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    errorMessage = errorJson.error || errorMessage;
-                } catch (e) {
-                    errorMessage = errorText || errorMessage;
-                }
-                throw new Error(errorMessage);
-            }
-
-            const data = await response.json();
-            if (data.token) {
-                await storage.setItem(TOKEN_KEY, data.token);
-                await storage.setItem(EMAIL_KEY, email);
-            }
-            return data;
-        } catch (error) {
-            console.error('[AuthService] Login Error:', error);
-            throw error;
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorMessage;
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
         }
-    },
+        throw new Error(errorMessage);
+      }
 
-    /**
-     * Get the stored token.
-     */
-    getToken: async () => {
-        return await storage.getItem(TOKEN_KEY);
-    },
+      const data = await response.json();
+      if (data.token) {
+        await storage.setItem(TOKEN_KEY, data.token);
+        await storage.setItem(EMAIL_KEY, email);
+      }
+      return data;
+    } catch (error) {
+      console.error("[AuthService] Login Error:", error);
+      throw error;
+    }
+  },
 
-    /**
-     * Get the stored user email.
-     */
-    getEmail: async () => {
-        return await storage.getItem(EMAIL_KEY);
-    },
+  /**
+   * Get the stored token.
+   */
+  getToken: async () => {
+    return await storage.getItem(TOKEN_KEY);
+  },
 
-    /**
-     * Get user profile and alarms.
-     * @param {string} token 
-     */
-    getUserInfo: async (token) => {
-        try {
-            const response = await apiFetch('/user', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
+  /**
+   * Get the stored user email.
+   */
+  getEmail: async () => {
+    return await storage.getItem(EMAIL_KEY);
+  },
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || 'Failed to fetch user info');
-            }
+  /**
+   * Get user profile and alarms.
+   * @param {string} token
+   */
+  getUserInfo: async (token) => {
+    try {
+      const response = await apiFetch("/user", {
+        method: "GET",
+        headers: {
+          "Internal-Auth": `Bearer ${token}`,
+        },
+      });
 
-            return await response.json();
-        } catch (error) {
-            console.error('[AuthService] Get User Info Error:', error);
-            throw error;
-        }
-    },
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to fetch user info");
+      }
 
-    /**
-     * Logout and clear storage.
-     */
-    logout: async () => {
-        try {
-            await storage.deleteItem(TOKEN_KEY);
-            await storage.deleteItem(EMAIL_KEY);
-        } catch (error) {
-            console.error('[AuthService] Logout Error:', error);
-        }
-    },
+      return await response.json();
+    } catch (error) {
+      console.error("[AuthService] Get User Info Error:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Logout and clear storage.
+   */
+  logout: async () => {
+    try {
+      await storage.deleteItem(TOKEN_KEY);
+      await storage.deleteItem(EMAIL_KEY);
+    } catch (error) {
+      console.error("[AuthService] Logout Error:", error);
+    }
+  },
 };

@@ -92,10 +92,7 @@ async fn test_get_user_and_notif() {
     // Get user
     let user_response = server
         .get("/user")
-        .add_header(
-            axum::http::header::AUTHORIZATION,
-            format!("Bearer {}", token),
-        )
+        .add_header("Internal-Auth", format!("Bearer {}", token))
         .await;
 
     user_response.assert_status_success();
@@ -108,10 +105,7 @@ async fn test_get_user_and_notif() {
     let alarm = Alarm::default();
     let alarms_response = server
         .post("/alarms")
-        .add_header(
-            axum::http::header::AUTHORIZATION,
-            format!("Bearer {}", token),
-        )
+        .add_header("Internal-Auth", format!("Bearer {}", token))
         .json(&json!({ "alarms": [alarm] }))
         .await;
     alarms_response.assert_status_success();
@@ -119,10 +113,7 @@ async fn test_get_user_and_notif() {
     // 3. Get user again and verify alarm is there
     let user_response = server
         .get("/user")
-        .add_header(
-            axum::http::header::AUTHORIZATION,
-            format!("Bearer {}", token),
-        )
+        .add_header("Internal-Auth", format!("Bearer {}", token))
         .await;
 
     user_response.assert_status_success();
@@ -193,10 +184,7 @@ async fn test_register_device() {
     let device_id = Uuid::new_v4().to_string();
     let mobile_register_resp = server
         .post("/register-device")
-        .add_header(
-            axum::http::header::AUTHORIZATION,
-            format!("Bearer {}", token),
-        )
+        .add_header("Internal-Auth", format!("Bearer {}", token))
         .json(&json!(Device::new_mobile(&device_id, notif_token)))
         .await;
     mobile_register_resp.assert_status_ok();
@@ -216,10 +204,7 @@ async fn test_register_device() {
     let sub_token = web_push::SubscriptionInfo::default();
     let browser_register_resp = server
         .post("/register-device")
-        .add_header(
-            axum::http::header::AUTHORIZATION,
-            format!("Bearer {}", token),
-        )
+        .add_header("Internal-Auth", format!("Bearer {}", token))
         .json(&json!(Device::new_browser(browser_id, sub_token.clone())))
         .await;
     browser_register_resp.assert_status_ok();
@@ -240,10 +225,7 @@ async fn test_register_device() {
     // Check that user info contain both devices
     let user_response = server
         .get("/user")
-        .add_header(
-            axum::http::header::AUTHORIZATION,
-            format!("Bearer {}", token),
-        )
+        .add_header("Internal-Auth", format!("Bearer {}", token))
         .await;
 
     user_response.assert_status_success();

@@ -62,16 +62,13 @@ impl From<DBError> for ApiError {
 }
 
 pub fn create_router(state: AppState) -> Router {
+    dotenvy::dotenv().ok();
     let pwa_url = std::env::var("PWA_URL").expect("PWA_URL must be set");
     tracing::info!("PWA_URL: {}", &pwa_url);
     let cors = CorsLayer::new()
         .allow_origin(pwa_url.parse::<HeaderValue>().unwrap())
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-        .allow_headers([
-            http::header::CONTENT_TYPE,
-            http::header::AUTHORIZATION,
-            http::header::HeaderName::from_static("credentials"),
-        ])
+        .allow_headers([http::header::CONTENT_TYPE, http::header::AUTHORIZATION])
         .allow_credentials(true);
 
     Router::new()

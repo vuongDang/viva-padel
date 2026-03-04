@@ -118,14 +118,23 @@ export const NotificationService = {
 
         if (subscription) {
           let keyMatches = false;
-          if (subscription.options && subscription.options.applicationServerKey) {
-            const existingKeyArray = new Uint8Array(subscription.options.applicationServerKey);
+          if (
+            subscription.options &&
+            subscription.options.applicationServerKey
+          ) {
+            const existingKeyArray = new Uint8Array(
+              subscription.options.applicationServerKey,
+            );
             if (existingKeyArray.length === expectedKeyArray.length) {
-              keyMatches = existingKeyArray.every((val, index) => val === expectedKeyArray[index]);
+              keyMatches = existingKeyArray.every(
+                (val, index) => val === expectedKeyArray[index],
+              );
             }
           }
           if (!keyMatches) {
-            console.log("[NotificationService] VAPID key changed, unsubscribing old subscription.");
+            console.log(
+              "[NotificationService] VAPID key changed, unsubscribing old subscription.",
+            );
             await subscription.unsubscribe();
             subscription = null;
           }
@@ -307,10 +316,10 @@ export const NotificationService = {
       var response = null;
       if (isWeb) {
         const subscription = JSON.parse(pushToken);
-        response = await apiFetch('/register-device', {
+        response = await apiFetch("/register-device", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${userToken}`,
+            "Internal-Auth": `Bearer ${userToken}`,
           },
           body: JSON.stringify({
             device_id: deviceId,
@@ -320,10 +329,10 @@ export const NotificationService = {
           }),
         });
       } else {
-        response = await apiFetch('/register-device', {
+        response = await apiFetch("/register-device", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${userToken}`,
+            "Internal-Auth": `Bearer ${userToken}`,
           },
           body: JSON.stringify({
             device_id: deviceId,
@@ -363,7 +372,7 @@ export const NotificationService = {
    * Sets up listeners for notifications.
    */
   initListeners: (onReceived, onResponse) => {
-    if (isWeb) return () => { };
+    if (isWeb) return () => {};
 
     const notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
