@@ -65,15 +65,16 @@ pub fn create_router(state: AppState) -> Router {
     dotenvy::dotenv().ok();
     let pwa_url = std::env::var("PWA_URL").expect("PWA_URL must be set");
     tracing::info!("PWA_URL: {}", &pwa_url);
+    let origins = [
+        pwa_url.parse::<HeaderValue>().unwrap(),
+        "https://viva-padel-app.xoi-lap-xuong.com"
+            .parse::<HeaderValue>()
+            .unwrap(),
+    ];
     let cors = CorsLayer::new()
-        .allow_origin(pwa_url.parse::<HeaderValue>().unwrap())
-        .allow_origin(
-            "https://viva-padel-app.xoi-lap-xuong.com"
-                .parse::<HeaderValue>()
-                .unwrap(),
-        )
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-        .allow_headers([http::header::CONTENT_TYPE, http::header::AUTHORIZATION])
+        .allow_origin(origins)
+        // .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        // .allow_headers([http::header::CONTENT_TYPE, http::header::AUTHORIZATION])
         .allow_credentials(true);
 
     tracing::info!("CORS: {:?}", cors);
