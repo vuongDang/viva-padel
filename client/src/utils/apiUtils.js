@@ -1,43 +1,43 @@
-import { CONFIG } from '../config';
-import { Platform } from 'react-native';
+import { CONFIG } from "../config";
+import { Platform } from "react-native";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const unauthorizedListeners = new Set();
 export const onUnauthorized = (callback) => {
-    unauthorizedListeners.add(callback);
-    return () => unauthorizedListeners.delete(callback);
+  unauthorizedListeners.add(callback);
+  return () => unauthorizedListeners.delete(callback);
 };
 
 const notifyUnauthorized = () => {
-    unauthorizedListeners.forEach(cb => cb());
+  unauthorizedListeners.forEach((cb) => cb());
 };
 
 /**
  * Fetch with a default timeout and 401 detection.
  */
 export async function fetchWithTimeout(url, options = {}) {
-    const { timeout = CONFIG.API_TIMEOUT } = options;
+  const { timeout = CONFIG.API_TIMEOUT } = options;
 
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
 
-    try {
-        const response = await fetch(url, {
-            ...options,
-            signal: controller.signal,
-        });
-        clearTimeout(id);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(id);
 
-        if (response.status === 401) {
-            notifyUnauthorized();
-        }
-
-        return response;
-    } catch (error) {
-        clearTimeout(id);
-        throw error;
+    if (response.status === 401) {
+      notifyUnauthorized();
     }
+
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
 }
 
 /**
@@ -53,28 +53,30 @@ export async function fetchWithTimeout(url, options = {}) {
  * @returns {Promise<Response>}
  */
 export async function apiFetch(endpoint, options = {}) {
-    const { headers: extraHeaders = {}, ...restOptions } = options;
+  const { headers: extraHeaders = {}, ...restOptions } = options;
 
-    const baseHeaders = {
-        'Content-Type': 'application/json',
-        ...extraHeaders,
-    };
+  const baseHeaders = {
+    "Content-Type": "application/json",
+    ...extraHeaders,
+  };
 
-    // Append Cloudflare Access headers only on native (non-web) platforms
-    if (Platform.OS !== 'web') {
-        if (process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID) {
-            baseHeaders['CF-Access-Client-Id'] = process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID;
-        }
-        if (process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET) {
-            baseHeaders['CF-Access-Client-Secret'] = process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET;
-        }
-    } else {
-        baseHeaders['credentials'] = 'include';
+  if (Platform.OS !== "web") {
+    // For mobile we use authorization token
+    if (process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID) {
+      baseHeaders["CF-Access-Client-Id"] =
+        process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_ID;
     }
+    if (process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET) {
+      baseHeaders["CF-Access-Client-Secret"] =
+        process.env.EXPO_PUBLIC_CF_ACCESS_CLIENT_SECRET;
+    }
+  } else {
+    // For web we use credentials cookie from CF login
+    restOptions.credentials = "include";
+  }
 
-    return fetchWithTimeout(`${API_URL}${endpoint}`, {
-        ...restOptions,
-        headers: baseHeaders,
-    });
+  return fetchWithTimeout(`${API_URL}${endpoint}`, {
+    ...restOptions,
+    headers: baseHeaders,
+  });
 }
-
