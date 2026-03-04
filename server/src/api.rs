@@ -62,20 +62,17 @@ impl From<DBError> for ApiError {
 }
 
 pub fn create_router(state: AppState) -> Router {
-    let cors = if cfg!(feature = "local_dev") {
-        CorsLayer::permissive()
-    } else {
-        let pwa_url = std::env::var("PWA_URL").expect("PWA_URL must be set");
-        CorsLayer::new()
-            .allow_origin(pwa_url.parse::<HeaderValue>().unwrap())
-            .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-            .allow_headers([
-                http::header::CONTENT_TYPE,
-                http::header::AUTHORIZATION,
-                http::header::HeaderName::from_static("credentials"),
-            ])
-            .allow_credentials(true)
-    };
+    let pwa_url = std::env::var("PWA_URL").expect("PWA_URL must be set");
+    tracing::info!("PWA_URL: {}", &pwa_url);
+    let cors = CorsLayer::new()
+        .allow_origin(pwa_url.parse::<HeaderValue>().unwrap())
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers([
+            http::header::CONTENT_TYPE,
+            http::header::AUTHORIZATION,
+            http::header::HeaderName::from_static("credentials"),
+        ])
+        .allow_credentials(true);
 
     Router::new()
         .route("/calendar", get(get_calendar))
