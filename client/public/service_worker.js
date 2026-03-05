@@ -12,8 +12,10 @@ self.addEventListener('push', function (event) {
         const title = data.title || 'Viva Padel';
         const options = {
             body: data.body || '',
-            icon: '/viva-padel-icon.png',
-            badge: '/viva-padel-icon.png',
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            vibrate: [200, 100, 200],
+            requireInteraction: true,
             data: data.data || {}
         };
 
