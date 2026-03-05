@@ -64,7 +64,10 @@ export const theme = {
             backgroundColor: '#FFF',
         },
         floatingButtonContainer: {
-            position: 'absolute',
+            ...Platform.select({
+                web: { position: 'fixed' },
+                default: { position: 'absolute' },
+            }),
             bottom: 30,
             left: 0,
             right: 0,

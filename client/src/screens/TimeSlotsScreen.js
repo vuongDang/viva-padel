@@ -154,7 +154,7 @@ export default function TimeSlotsScreen({
         <AuthBadge user={user} onLogin={onLogin} onLogout={onLogout} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         <TouchableOpacity
           style={[styles.button, styles.primaryButton, { marginBottom: 16 }]}
           onPress={openCreateModal}
@@ -397,6 +397,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+    ...Platform.select({
+      web: { height: '100dvh', maxHeight: '100dvh', overflow: 'hidden' },
+      default: {},
+    }),
   },
   header: theme.styles.header,
 
@@ -416,8 +420,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   scrollContent: {
-    flexGrow: 1,
     padding: 24,
+    paddingBottom: 100,
   },
   emptyContent: {
     flex: 1,

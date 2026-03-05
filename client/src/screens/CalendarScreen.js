@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { StyleSheet, View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
+import { StyleSheet, View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Platform } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from "react-native-safe-area-context";
 import MonthNav from "../components/MonthNav";
@@ -196,23 +196,23 @@ export default function CalendarScreen({
                 <AuthBadge user={user} onLogin={onLogin} onLogout={onLogout} />
             </View>
 
-            <View style={styles.filterSection}>
-                <FilterBar
-                    filters={alarms}
-                    activeFilterId={activeAlarmId}
-                    onSelectFilter={handleAlarmSelect}
-                    onDeleteMode={toggleDeleteMode}
-                    isDeleteMode={deleteMode}
-                    onEditMode={toggleEditMode}
-                    isEditMode={editMode}
-                    onCreateFilter={() => {
-                        setSelectedAlarmToEdit(null);
-                        setCreateModalVisible(true);
-                    }}
-                />
-            </View>
-
             <ScrollView contentContainerStyle={styles.content}>
+                <View style={styles.filterSection}>
+                    <FilterBar
+                        filters={alarms}
+                        activeFilterId={activeAlarmId}
+                        onSelectFilter={handleAlarmSelect}
+                        onDeleteMode={toggleDeleteMode}
+                        isDeleteMode={deleteMode}
+                        onEditMode={toggleEditMode}
+                        isEditMode={editMode}
+                        onCreateFilter={() => {
+                            setSelectedAlarmToEdit(null);
+                            setCreateModalVisible(true);
+                        }}
+                    />
+                </View>
+
                 <MonthNav currentDate={currentDate} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} />
                 <Calendar availabilities={availabilities} currentMonthDate={currentDate} onDateClick={onDateClick} filterFn={checkAvailability} loading={loading} />
                 <RefreshNote timestamp={calendarTimestamp} />
@@ -260,7 +260,11 @@ export default function CalendarScreen({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.background
+        backgroundColor: theme.colors.background,
+        ...Platform.select({
+            web: { height: '100dvh', maxHeight: '100dvh', overflow: 'hidden' },
+            default: {},
+        }),
     },
     header: theme.styles.header,
     menuButton: {
