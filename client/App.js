@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createStackNavigator, CardStyleInterpolators } from "@react-navigation/stack";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import HomeScreen from "./src/screens/HomeScreen";
 import CalendarScreen from "./src/screens/CalendarScreen";
@@ -40,7 +42,7 @@ LogBox.ignoreLogs([
   "[expo-notifications] Listening to push token changes is not yet fully supported on web.",
 ]);
 
-const Stack = createNativeStackNavigator();
+const Stack = Platform.OS === "web" ? createStackNavigator() : createNativeStackNavigator();
 
 export default function App() {
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -487,113 +489,120 @@ export default function App() {
   }, [alarms]);
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer ref={navigationRef} onStateChange={onStateChange}>
-        <Stack.Navigator
-          screenOptions={{
-            headerShown: false,
-            animation: "slide_from_right",
-            freezeOnBlur: true,
-          }}
-          detachInactiveScreens={true}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <NavigationContainer ref={navigationRef} onStateChange={onStateChange}>
+          <Stack.Navigator
+            screenOptions={Platform.OS === "web" ? {
+              headerShown: false,
+              cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+              gestureEnabled: true,
+              cardStyle: { backgroundColor: "transparent" },
+            } : {
+              headerShown: false,
+              animation: "slide_from_right",
+              freezeOnBlur: true,
+            }}
+            detachInactiveScreens={true}
+          >
+            <Stack.Screen name="Home">
+              {(props) => (
+                <HomeScreen
+                  {...props}
+                  openDrawer={openDrawer}
+                  user={user}
+                  onLogin={handleLogin}
+                  onLogout={handleLogout}
+                />
+              )}
+            </Stack.Screen>
+            <Stack.Screen name="Calendar">
+              {(props) => (
+                <CalendarScreen
+                  {...props}
+                  openDrawer={openDrawer}
+                  availabilities={availabilities}
+                  filteredMatches={filteredMatches}
+                  calendarTimestamp={calendarTimestamp}
+                  loading={reservationsLoading}
+                  onRefresh={() => fetchReservations(true)}
+                  onInitialLoad={() => fetchReservations(false)}
+                  user={user}
+                  onLogin={handleLogin}
+                  onLogout={handleLogout}
+                  alarms={alarms}
+                  onSaveAlarm={handleSaveAlarm}
+                  onDeleteAlarm={handleDeleteAlarm}
+                />
+              )}
+            </Stack.Screen>
+            <Stack.Screen name="TimeSlots">
+              {(props) => (
+                <TimeSlotsScreen
+                  {...props}
+                  openDrawer={openDrawer}
+                  user={user}
+                  alarms={alarms}
+                  availabilities={availabilities}
+                  filteredMatches={filteredMatches}
+                  calendarTimestamp={calendarTimestamp}
+                  matchedResults={matchedResults}
+                  onRefresh={() => fetchReservations(true)}
+                  loading={reservationsLoading}
+                  onSaveAlarm={handleSaveAlarm}
+                  onDeleteAlarm={handleDeleteAlarm}
+                  onToggleAlarm={handleToggleAlarm}
+                  onClearMatchedResult={handleClearMatchedResult}
+                  onSync={handleSyncAlarms}
+                  onLogin={handleLogin}
+                  onLogout={handleLogout}
+                />
+              )}
+            </Stack.Screen>
+          </Stack.Navigator>
+        </NavigationContainer>
+
+        <CustomDrawer
+          visible={drawerVisible}
+          onClose={closeDrawer}
+          onNavigate={navigateTo}
+          currentScreen={currentScreen}
+          user={user}
+          onLogout={handleLogout}
+          onLogin={handleLogin}
+          onSimulateMatch={handleIncomingMatchedResults}
+          onShowDebug={() => setDebugVisible(true)}
+        />
+
+        <DebugOverlay
+          visible={debugVisible}
+          onClose={() => setDebugVisible(false)}
+        />
+
+        {/* Notification Content Modal */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
         >
-          <Stack.Screen name="Home">
-            {(props) => (
-              <HomeScreen
-                {...props}
-                openDrawer={openDrawer}
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-            )}
-          </Stack.Screen>
-          <Stack.Screen name="Calendar">
-            {(props) => (
-              <CalendarScreen
-                {...props}
-                openDrawer={openDrawer}
-                availabilities={availabilities}
-                filteredMatches={filteredMatches}
-                calendarTimestamp={calendarTimestamp}
-                loading={reservationsLoading}
-                onRefresh={() => fetchReservations(true)}
-                onInitialLoad={() => fetchReservations(false)}
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-                alarms={alarms}
-                onSaveAlarm={handleSaveAlarm}
-                onDeleteAlarm={handleDeleteAlarm}
-              />
-            )}
-          </Stack.Screen>
-          <Stack.Screen name="TimeSlots">
-            {(props) => (
-              <TimeSlotsScreen
-                {...props}
-                openDrawer={openDrawer}
-                user={user}
-                alarms={alarms}
-                availabilities={availabilities}
-                filteredMatches={filteredMatches}
-                calendarTimestamp={calendarTimestamp}
-                matchedResults={matchedResults}
-                onRefresh={() => fetchReservations(true)}
-                loading={reservationsLoading}
-                onSaveAlarm={handleSaveAlarm}
-                onDeleteAlarm={handleDeleteAlarm}
-                onToggleAlarm={handleToggleAlarm}
-                onClearMatchedResult={handleClearMatchedResult}
-                onSync={handleSyncAlarms}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-            )}
-          </Stack.Screen>
-        </Stack.Navigator>
-      </NavigationContainer>
-
-      <CustomDrawer
-        visible={drawerVisible}
-        onClose={closeDrawer}
-        onNavigate={navigateTo}
-        currentScreen={currentScreen}
-        user={user}
-        onLogout={handleLogout}
-        onLogin={handleLogin}
-        onSimulateMatch={handleIncomingMatchedResults}
-        onShowDebug={() => setDebugVisible(true)}
-      />
-
-      <DebugOverlay
-        visible={debugVisible}
-        onClose={() => setDebugVisible(false)}
-      />
-
-      {/* Notification Content Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalBg}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>
-              {selectedNotification?.title || "Notification"}
-            </Text>
-            <Text style={styles.modalBody}>{selectedNotification?.body}</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.closeButtonText}>Fermer</Text>
-            </TouchableOpacity>
+          <View style={styles.modalBg}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>
+                {selectedNotification?.title || "Notification"}
+              </Text>
+              <Text style={styles.modalBody}>{selectedNotification?.body}</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.closeButtonText}>Fermer</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
-    </SafeAreaProvider>
+        </Modal>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
