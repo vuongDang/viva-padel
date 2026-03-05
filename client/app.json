@@ -35,7 +35,21 @@
       "display": "standalone",
       "themeColor": "#ffffff",
       "backgroundColor": "#ffffff",
-      "description": "Retrouvez tous les créneaux de Padel"
+      "description": "Retrouvez tous les créneaux de Padel",
+      "icons": [
+        {
+          "src": "./assets/viva-padel-icon.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any maskable"
+        },
+        {
+          "src": "./assets/viva-padel-icon.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "purpose": "any maskable"
+        }
+      ]
     },
     "extra": {
       "eas": {
