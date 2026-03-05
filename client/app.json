@@ -29,7 +29,7 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/viva-padel-icon.png",
+      "favicon": "./assets/icon-512.png",
       "name": "Viva Padel",
       "shortName": "VivaPadel",
       "display": "standalone",
@@ -49,7 +49,12 @@
           "type": "image/png",
           "purpose": "any maskable"
         }
-      ]
+      ],
+      "splash": {
+        "image": "./assets/viva-padel-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff"
+      }
     },
     "extra": {
       "eas": {
